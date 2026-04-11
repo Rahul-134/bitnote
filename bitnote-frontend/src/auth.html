@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html class="light" lang="en">
+
+<head>
+
+    <script>
+        if (localStorage.getItem("isLoggedIn") === "true") {
+            window.location.href = "home.html";
+        }
+    </script>
+
+
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>BitNote Authentication</title>
+    <style>
+        .separator {
+            display: flex;
+            /* Use flexbox for alignment */
+            align-items: center;
+            /* Vertically center the "OR" text */
+            text-align: center;
+            color: #aaa;
+            margin: 20px 0;
+            /* Add some vertical spacing */
+        }
+
+        .separator::before,
+        .separator::after {
+            content: "";
+            /* Required for pseudo-elements */
+            flex: 1;
+            /* Allows lines to grow and fill available space */
+            border-top: 1px solid #aaa;
+            /* Creates the horizontal line */
+            margin: 0 10px;
+            /* Adds space between the line and the text */
+        }
+    </style>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Noto+Sans:wght@400;500;600;700&amp;display=swap"
+        rel="stylesheet" />
+    <link
+        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+        rel="stylesheet" />
+    <link rel="icon" href="bitnote_favicon.png">
+
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#135bec",
+                        "background-light": "#f6f6f8",
+                        "background-dark": "#101622",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"],
+                        "body": ["Inter", "sans-serif"],
+                    },
+                    borderRadius: { "DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px" },
+                },
+            },
+        }
+    </script>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import {
+            getAuth,
+            GoogleAuthProvider,
+            signInWithPopup,
+        } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+
+        // const firebaseConfig = {
+        //     apiKey: "YOUR_API_KEY",
+        //     authDomain: "YOUR_PROJECT.firebaseapp.com",
+        //     projectId: "YOUR_PROJECT_ID",
+        //     appId: "YOUR_APP_ID",
+        // };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const provider = new GoogleAuthProvider();
+
+        document.getElementById("googleBtn").onclick = async () => {
+            try {
+                // 1️⃣ Google popup
+                const result = await signInWithPopup(auth, provider);
+
+                // 2️⃣ Get ID token
+                const idToken = await result.user.getIdToken();
+
+                const pic = await result.user.photoURL;
+                localStorage.setItem("image", pic);
+
+                // 3️⃣ Send token to backend
+                const res = await fetch("http://localhost:8000/auth/google", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({
+                        id_token: idToken,
+                        username: result.user.displayName,
+                        pic: pic
+                    }),
+                });
+
+                if (!res.ok) {
+                    const text = await res.text(); // read raw error
+                    console.error("Backend error:", text);
+                    throw new Error("Backend error");
+                }
+                const data = await res.json();
+                console.log(data);
+                // alert(pic); 
+
+                if (data.status === "logged_in") {
+                    localStorage.setItem("isLoggedIn", "true");
+                    sessionStorage.setItem("user_id", data.user_id);
+                    window.location.href = "home.html";
+                }
+
+            } catch (err) {
+                console.error(err);
+                alert("Google login failed");
+            }
+        };
+    </script>
+
+</head>
+
+<body
+    class="bg-background-light dark:bg-background-dark text-slate-900 dark:text-white font-display min-h-screen flex flex-col antialiased selection:bg-primary/20 selection:text-primary">
+    <div class="relative flex flex-1 w-full flex-col overflow-hidden items-center justify-center py-12 px-4 sm:px-6">
+        <header class="w-full flex flex-col items-center gap-2 select-none mb-8">
+            <div class="flex items-center gap-2">
+                <img src="Another.png" alt="BitNote Logo" style="width: 35px; height: auto;">
+                <span
+                    class="text-[#111318] dark:text-white tracking-tight text-[28px] font-bold leading-tight">BitNote</span>
+            </div>
+            <p class="text-[#616f89] dark:text-slate-400 text-sm font-normal leading-normal text-center">
+                Sign in to continue learning
+            </p>
+        </header>
+        <main class="w-full max-w-[400px]">
+            <div
+                class="bg-white dark:bg-[#1A2230] rounded-xl shadow-[0_4px_24px_rgba(0,0,0,0.04)] border border-slate-200/60 dark:border-slate-700/50 p-6 sm:p-8">
+                <div class="flex p-1 mb-8 bg-[#f0f2f4] dark:bg-[#0D121C] rounded-lg">
+                    <button id="loginTab"
+                        class="flex-1 py-2 text-sm font-medium rounded-md text-[#111318] dark:text-white bg-white dark:bg-[#1A2230] shadow-[0_1px_3px_rgba(0,0,0,0.1)] transition-all"
+                        type="button">
+                        Log In
+                    </button>
+                    <button id="signupTab"
+                        class="flex-1 py-2 text-sm font-medium rounded-md text-[#616f89] dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 transition-all"
+                        type="button">
+                        Sign Up
+                    </button>
+                </div>
+
+                <form action="#" class="flex flex-col gap-5" id="loginForm">
+                    <label class="flex flex-col gap-2">
+                        <span class="text-[#111318] dark:text-slate-200 text-sm font-medium leading-normal">Email
+                            address</span>
+                        <input aria-label="Email Address" autofocus="" id="login-email"
+                            class="form-input flex w-full min-w-0 resize-none overflow-hidden rounded-lg text-[#111318] dark:text-white border border-[#dbdfe6] dark:border-slate-600 bg-white dark:bg-[#0D121C] focus:border-primary focus:ring-1 focus:ring-primary h-12 placeholder:text-[#9ca3af] px-4 text-base font-normal leading-normal transition-colors"
+                            name="email" placeholder="student@university.edu" required="" type="email" />
+                    </label>
+                    <label class="flex flex-col gap-2">
+                        <span
+                            class="text-[#111318] dark:text-slate-200 text-sm font-medium leading-normal">Password</span>
+                        <input aria-label="Password" id="login-password"
+                            class="form-input flex w-full min-w-0 resize-none overflow-hidden rounded-lg text-[#111318] dark:text-white border border-[#dbdfe6] dark:border-slate-600 bg-white dark:bg-[#0D121C] focus:border-primary focus:ring-1 focus:ring-primary h-12 placeholder:text-[#9ca3af] px-4 text-base font-normal leading-normal transition-colors"
+                            name="password" placeholder="••••••••" required="" type="password" />
+                    </label>
+                    <button id="authSubmitBtn"
+                        class="mt-2 flex w-full cursor-pointer items-center justify-center overflow-hidden rounded-lg h-12 px-5 bg-primary hover:bg-blue-600 dark:hover:bg-blue-500 text-white text-base font-bold leading-normal tracking-[0.015em] transition-colors shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 dark:focus:ring-offset-[#1A2230]"
+                        type="submit">
+                        Log In
+                    </button>
+                    <div class="separator">OR</div>
+
+                    <button id="googleBtn"
+                        class="border border-slate-800 flex w-full cursor-pointer items-center justify-center overflow-hidden rounded-lg hover:bg-slate-300 h-12 px-5 bg-slate-200 text-black text-base font-bold leading-normal tracking-[0.015em] transition-colors shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 dark:focus:ring-offset-[#1A2230]">
+                        <img src="google_logo.png" style="width: 35px; padding: 5px;">
+                        Continue with Google
+                    </button>
+                </form>
+
+                <form action="#" class="flex flex-col gap-5 hidden" id="signupForm">
+                    <label class="flex flex-col gap-2">
+                        <span
+                            class="text-[#111318] dark:text-slate-200 text-sm font-medium leading-normal">Username</span>
+                        <input aria-label="Username" id="signup-username"
+                            class="form-input flex w-full min-w-0 resize-none overflow-hidden rounded-lg text-[#111318] dark:text-white border border-[#dbdfe6] dark:border-slate-600 bg-white dark:bg-[#0D121C] focus:border-primary focus:ring-1 focus:ring-primary h-12 placeholder:text-[#9ca3af] px-4 text-base font-normal leading-normal transition-colors"
+                            name="username" placeholder="your_name" required="" type="text" />
+                    </label>
+                    <label class="flex flex-col gap-2">
+                        <span class="text-[#111318] dark:text-slate-200 text-sm font-medium leading-normal">Email
+                            address</span>
+                        <input aria-label="Email Address" id="signup-email"
+                            class="form-input flex w-full min-w-0 resize-none overflow-hidden rounded-lg text-[#111318] dark:text-white border border-[#dbdfe6] dark:border-slate-600 bg-white dark:bg-[#0D121C] focus:border-primary focus:ring-1 focus:ring-primary h-12 placeholder:text-[#9ca3af] px-4 text-base font-normal leading-normal transition-colors"
+                            name="email" placeholder="student@university.edu" required="" type="email" />
+                    </label>
+                    <label class="flex flex-col gap-2">
+                        <span
+                            class="text-[#111318] dark:text-slate-200 text-sm font-medium leading-normal">Password</span>
+                        <input aria-label="Password" id="signup-password"
+                            class="form-input flex w-full min-w-0 resize-none overflow-hidden rounded-lg text-[#111318] dark:text-white border border-[#dbdfe6] dark:border-slate-600 bg-white dark:bg-[#0D121C] focus:border-primary focus:ring-1 focus:ring-primary h-12 placeholder:text-[#9ca3af] px-4 text-base font-normal leading-normal transition-colors"
+                            name="password" placeholder="••••••••" required="" type="password" />
+                        <p id="password-error" class="text-red-500 text-sm hidden"></p>
+
+                    </label>
+                    <label class="flex-col gap-2" id="confirm-password-group">
+                        <span class="text-[#111318] dark:text-slate-200 text-sm font-medium leading-normal">Confirm
+                            Password</span>
+                        <input aria-label="Confirm Password" id="signup-confirm-password"
+                            class="form-input flex w-full min-w-0 resize-none overflow-hidden rounded-lg text-[#111318] dark:text-white border border-[#dbdfe6] dark:border-slate-600 bg-white dark:bg-[#0D121C] focus:border-primary focus:ring-1 focus:ring-primary h-12 placeholder:text-[#9ca3af] px-4 text-base font-normal leading-normal transition-colors"
+                            name="confirm-password" placeholder="••••••••" type="password" />
+                        <p id="password-error" class="text-red-500 text-sm hidden"></p>
+                    </label>
+                    <button id="signupSubmitBtn"
+                        class="mt-2 flex w-full cursor-pointer items-center justify-center overflow-hidden rounded-lg h-12 px-5 bg-primary hover:bg-blue-600 dark:hover:bg-blue-500 text-white text-base font-bold leading-normal tracking-[0.015em] transition-colors shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 dark:focus:ring-offset-[#1A2230]"
+                        type="submit">
+                        Create Account
+                    </button>
+                    <button id="googleBtn"
+                        class="border border-slate-800 flex w-full cursor-pointer items-center justify-center overflow-hidden rounded-lg hover:bg-slate-300 h-12 px-5 bg-slate-200 text-black text-base font-bold leading-normal tracking-[0.015em] transition-colors shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 dark:focus:ring-offset-[#1A2230]">
+                        <img src="google_logo.png" style="width: 35px; padding: 5px;">
+                        Continue with Google
+                    </button>
+                </form>
+                <div class="mt-6 flex justify-center text-center">
+                    <p
+                        class="text-[#616f89] dark:text-slate-400 text-xs font-normal leading-relaxed flex items-center gap-1.5">
+                        <span class="material-symbols-outlined text-[16px] opacity-70">lock</span>
+                        <span>Sign in to pick up where you left off.</span>
+                    </p>
+                </div>
+            </div>
+            <div class="mt-8 text-center">
+                <a class="text-sm font-medium text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 transition-colors"
+                    href="index.html">
+                    ← Back to Home
+                </a>
+            </div>
+        </main>
+    </div>
+
+    <script src="scripts/app.js"></script>
+
+    <script>
+        const loginTab = document.getElementById("loginTab");
+        const signupTab = document.getElementById("signupTab");
+
+        const loginForm = document.getElementById("loginForm");
+        const signupForm = document.getElementById("signupForm");
+
+        const authSubmitBtn = document.getElementById("authSubmitBtn");
+
+        // ---- Switch to Login ----
+        loginTab.addEventListener("click", () => {
+            // Forms
+            loginForm.classList.remove("hidden");
+            signupForm.classList.add("hidden");
+
+            // Tab styles
+            loginTab.classList.add(
+                "bg-white",
+                "dark:bg-[#1A2230]",
+                "text-[#111318]",
+                "dark:text-white",
+                "shadow-[0_1px_3px_rgba(0,0,0,0.1)]"
+            );
+            signupTab.classList.remove(
+                "bg-white",
+                "dark:bg-[#1A2230]",
+                "text-[#111318]",
+                "dark:text-white",
+                "shadow-[0_1px_3px_rgba(0,0,0,0.1)]"
+            );
+
+            // Muted inactive tab
+            signupTab.classList.add(
+                "text-[#616f89]",
+                "dark:text-slate-400"
+            );
+
+            // Button text
+            authSubmitBtn.textContent = "Log In";
+        });
+
+        // ---- Switch to Sign Up ----
+        signupTab.addEventListener("click", () => {
+            // Forms
+            signupForm.classList.remove("hidden");
+            loginForm.classList.add("hidden");
+
+            // Tab styles
+            signupTab.classList.add(
+                "bg-white",
+                "dark:bg-[#1A2230]",
+                "text-[#111318]",
+                "dark:text-white",
+                "shadow-[0_1px_3px_rgba(0,0,0,0.1)]"
+            );
+            loginTab.classList.remove(
+                "bg-white",
+                "dark:bg-[#1A2230]",
+                "text-[#111318]",
+                "dark:text-white",
+                "shadow-[0_1px_3px_rgba(0,0,0,0.1)]"
+            );
+
+            // Muted inactive tab
+            loginTab.classList.add(
+                "text-[#616f89]",
+                "dark:text-slate-400"
+            );
+
+            // Button text
+            authSubmitBtn.textContent = "Create Account";
+        });
+    </script>
+
+    <script>
+        loginForm.addEventListener("submit", async (e) => {
+            e.preventDefault();
+
+            const email = document.getElementById("login-email").value;
+            const password = document.getElementById("login-password").value;
+
+            const res = await fetch("http://localhost:8000/auth/login", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ email, password }),
+            });
+
+            const data = await res.json();
+
+            if (!res.ok) {
+                alert(data.detail);
+                return;
+            }
+
+            localStorage.setItem("isLoggedIn", "true");
+            // localStorage.setItem("userId", data.user_id);
+            localStorage.setItem("image", "https://lh3.googleusercontent.com/aida-public/AB6AXuA3sdAy3TOlI53n0VZzXoy-_I5-QeFqBUO3E9Nix4kZhEiOQVnQRYTq8rlJTsZnE-ULiJxvbAkt95tmhSsBGgnWnGnvPwPpRuQvNHLYSDA5PTd7118m-XAcloihKtkKmf9KoPj8poU8h9VfGnrfzrx0HiJap4nzV67kAKNcHftVheWCustQkBs9kjVTJiY3HEEDFvfyFsVwcw3LajD2cq0fPE7uznfNrQuNEJjeTU3oGmZ4tDUztgnZdSRjZ9HJHBM-j0NPSfpBtokB");
+
+            sessionStorage.setItem("user_id", data.user_id);
+
+            window.location.href =
+                sessionStorage.getItem("redirectAfterAuth") || "home.html";
+        });
+    </script>
+
+
+    <script>
+        signupForm.addEventListener("submit", async (e) => {
+            e.preventDefault();
+
+            const username = document.getElementById("signup-username").value;
+            const email = document.getElementById("signup-email").value;
+            const password = document.getElementById("signup-password").value;
+
+            const res = await fetch("http://localhost:8000/auth/signup", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ username, email, password }),
+            });
+
+            const data = await res.json();
+
+            if (!res.ok) {
+                alert(data.detail);
+                return;
+            }
+
+            alert("Signup successful. Please log in.");
+        });
+    </script>
+
+    <script>
+        signupForm.addEventListener("submit", async (e) => {
+            e.preventDefault();
+
+            const username = document.getElementById("signup-username").value.trim();
+            const email = document.getElementById("signup-email").value.trim();
+            const password = document.getElementById("signup-password").value;
+            const confirmPassword = document.getElementById("signup-confirm-password").value;
+
+            const passwordError = document.getElementById("password-error");
+            const passwordInput = document.getElementById("signup-password");
+            const confirmInput = document.getElementById("signup-confirm-password");
+
+            // Reset
+            passwordError.classList.add("hidden");
+            passwordInput.classList.remove("border-red-500");
+            confirmInput.classList.remove("border-red-500");
+
+            // Validation rules
+            const passwordRegex =
+                /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&]).{8,}$/;
+
+            if (!passwordRegex.test(password)) {
+                passwordError.textContent =
+                    "Password must be 8+ chars, include uppercase, lowercase, number & special character.";
+                passwordError.classList.remove("hidden");
+                passwordInput.classList.add("border-red-500");
+                return;
+            }
+
+            if (password !== confirmPassword) {
+                passwordError.textContent = "Passwords do not match.";
+                passwordError.classList.remove("hidden");
+                confirmInput.classList.add("border-red-500");
+                return;
+            }
+
+            // If valid → call backend
+            const res = await fetch("http://localhost:8000/auth/signup", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ username, email, password }),
+            });
+
+            const data = await res.json();
+
+            if (!res.ok) {
+                passwordError.textContent = data.detail || "Signup failed.";
+                passwordError.classList.remove("hidden");
+                return;
+            }
+
+            alert("Signup successful. Please log in.");
+            signupForm.reset();
+        });
+    </script>
+
+
+</body>
+
+</html>

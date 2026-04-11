@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html class="light" lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>BitNote - New Note Creation</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+        rel="stylesheet" />
+    <link rel="icon" href="bitnote_favicon.png">
+
+    <style type="text/tailwindcss">
+        :root {
+            --primary-color: #135bec;
+        }.ai-options-section, .course-topic-field {
+            display: none;
+        }body:has(input[value="educational"]:checked) .ai-options-section {
+            display: flex;
+        }
+        body:has(input[value="educational"]:checked) .course-topic-field {
+            display: flex;
+        }.btn-text-general, .btn-text-educational {
+            display: none;
+        }
+        body:has(input[value="general"]:checked) .btn-text-general {
+            display: inline;
+        }
+        body:has(input[value="educational"]:checked) .btn-text-educational {
+            display: inline;
+        }
+    </style>
+    <script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#135bec",
+                        "background-light": "#f6f6f8",
+                        "background-dark": "#101622",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"]
+                    },
+                    borderRadius: { "DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px" },
+                },
+            },
+        }
+    </script>
+
+    <script>
+        if (localStorage.getItem("isLoggedIn") !== "true") {
+            sessionStorage.setItem("redirectAfterAuth", "create-note.html");
+            window.location.href = "auth.html";
+        }
+    </script>
+
+
+</head>
+
+<body
+    class="bg-background-light dark:bg-background-dark font-display text-[#111318] dark:text-white transition-colors duration-200">
+
+    <p id="hope"></p>
+
+    <div class="relative flex min-h-screen w-full flex-col overflow-x-hidden">
+        <div class="w-full flex justify-center pt-4 px-4 sm:px-10">
+            <header
+                class="flex w-full max-w-5xl items-center justify-between whitespace-nowrap border-b border-solid border-[#dbdfe6] dark:border-gray-700 px-4 pb-4">
+                <div class="flex items-center gap-4 text-[#111318] dark:text-white">
+                    <div class="text-primary">
+                        <img src="Another.png" alt="BitNote Logo" style="width: 35px; height: auto;">
+                    </div>
+                    <h2 class="text-xl font-black leading-tight tracking-[-0.015em]">BitNote</h2>
+                </div>
+                <a aria-label="Cancel" href="home.html"
+                    class="flex size-10 cursor-pointer items-center justify-center overflow-hidden rounded-full bg-white dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 text-[#111318] dark:text-white transition-colors border border-[#dbdfe6] dark:border-gray-700"
+                    title="Cancel">
+                    <span class="material-symbols-outlined text-xl">close</span>
+                </a>
+            </header>
+        </div>
+        <div class="flex flex-1 justify-center py-8 px-4 sm:px-6">
+            <div class="flex flex-col max-w-2xl w-full gap-8">
+                <div class="flex flex-col gap-2 text-center sm:text-left">
+                    <h1
+                        class="text-[#111318] dark:text-white tracking-tight text-3xl sm:text-4xl font-bold leading-tight">
+                        Start a new learning session</h1>
+                    <p class="text-[#616f89] dark:text-gray-400 text-base font-normal">Choose your note format to get
+                        started with your study session.</p>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <label class="relative group cursor-pointer">
+                        <input class="peer sr-only" name="note_type" type="radio" value="general" />
+                        <div
+                            class="h-full flex flex-col gap-4 p-5 rounded-xl border-2 border-transparent bg-white dark:bg-gray-800 shadow-sm transition-all duration-200 hover:shadow-md peer-checked:border-primary peer-checked:bg-primary/5 dark:peer-checked:bg-primary/10">
+                            <div
+                                class="size-10 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-primary">
+                                <span class="material-symbols-outlined">edit_note</span>
+                            </div>
+                            <div class="flex flex-col gap-1">
+                                <h3 class="text-lg font-semibold text-[#111318] dark:text-white">General Note</h3>
+                                <p class="text-sm text-[#616f89] dark:text-gray-400 leading-relaxed">Capture ideas
+                                    freely without constraints. Best for quick thoughts and standard text.</p>
+                            </div>
+                            <div
+                                class="mt-auto pt-2 flex items-center gap-2 opacity-0 transition-opacity peer-checked:opacity-100 text-primary font-medium text-sm">
+                                <span class="material-symbols-outlined text-[18px]">check_circle</span>
+                                Selected
+                            </div>
+                        </div>
+                    </label>
+                    <label class="relative group cursor-pointer">
+                        <input checked="" class="peer sr-only" name="note_type" type="radio" value="educational" />
+                        <div
+                            class="h-full flex flex-col gap-4 p-5 rounded-xl border-2 border-transparent bg-white dark:bg-gray-800 shadow-sm transition-all duration-200 hover:shadow-md peer-checked:border-primary peer-checked:bg-primary/5 dark:peer-checked:bg-primary/10">
+                            <div
+                                class="size-10 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center text-purple-600 dark:text-purple-400">
+                                <span class="material-symbols-outlined">school</span>
+                            </div>
+                            <div class="flex flex-col gap-1">
+                                <div class="flex items-center gap-2">
+                                    <h3 class="text-lg font-semibold text-[#111318] dark:text-white">Educational Note
+                                    </h3>
+                                    <span
+                                        class="inline-flex items-center rounded-md bg-purple-50 px-2 py-1 text-xs font-medium text-purple-700 ring-1 ring-inset ring-purple-700/10 dark:bg-purple-400/10 dark:text-purple-400 dark:ring-purple-400/30">AI
+                                        Powered</span>
+                                </div>
+                                <p class="text-sm text-[#616f89] dark:text-gray-400 leading-relaxed">Leverage AI to
+                                    create structured syllabi, quizzes, and learning roadmaps automatically.</p>
+                            </div>
+                            <div
+                                class="mt-auto pt-2 flex items-center gap-2 opacity-0 transition-opacity peer-checked:opacity-100 text-primary font-medium text-sm">
+                                <span class="material-symbols-outlined text-[18px]">check_circle</span>
+                                Selected
+                            </div>
+                        </div>
+                    </label>
+                </div>
+                <div
+                    class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-[#f0f2f4] dark:border-gray-700">
+                    <div class="flex flex-col gap-6">
+                        <div class="flex flex-col gap-2">
+                            <label class="text-[#111318] dark:text-white text-base font-semibold">Note Title</label>
+                            <input id="noteTitle"
+                                class="w-full bg-transparent border-0 border-b-2 border-[#e5e7eb] dark:border-gray-600 focus:border-primary dark:focus:border-primary focus:ring-0 px-0 py-3 text-xl placeholder:text-[#9ca3af] dark:placeholder:text-gray-500 text-[#111318] dark:text-white transition-colors"
+                                placeholder="What are you learning today?" type="text" />
+                        </div>
+                        <div class="course-topic-field flex flex-col gap-2">
+                            <label class="text-[#111318] dark:text-white text-base font-semibold">Course / Topic <span
+                                    class="text-sm font-normal text-[#616f89] dark:text-gray-400 ml-1">(Optional)</span></label>
+                            <div class="relative">
+                                <span
+                                    class="absolute inset-y-0 left-0 flex items-center pl-3 text-[#616f89] dark:text-gray-400">
+                                    <span class="material-symbols-outlined text-[20px]">tag</span>
+                                </span>
+                                <input id="courseTopic"
+                                    class="w-full rounded-lg border border-[#dbdfe6] dark:border-gray-600 bg-white dark:bg-gray-900 h-12 pl-10 pr-4 text-base focus:border-primary focus:ring-1 focus:ring-primary dark:text-white placeholder:text-[#9ca3af] dark:placeholder:text-gray-500"
+                                    placeholder="e.g., Biology 101, Linear Algebra, Renaissance History" />
+                            </div>
+                        </div>
+                        <div
+                            class="ai-options-section flex-col gap-4 pt-4 border-t border-[#f0f2f4] dark:border-gray-700 mt-2">
+                            <div class="flex flex-col gap-2">
+                                <label class="text-[#111318] dark:text-white text-sm font-semibold">
+                                    Your Level
+                                </label>
+                                <div class="flex gap-2">
+                                    <label class="cursor-pointer">
+                                        <input type="radio" name="learningLevel" value="beginner" class="peer sr-only"
+                                            checked>
+                                        <div class="px-4 py-2 rounded-lg border border-slate-200 dark:border-gray-600
+                                                peer-checked:border-primary peer-checked:bg-primary/10
+                                                text-sm font-medium">
+                                            Beginner
+                                        </div>
+                                    </label>
+
+                                    <label class="cursor-pointer">
+                                        <input type="radio" name="learningLevel" value="intermediate"
+                                            class="peer sr-only">
+                                        <div class="px-4 py-2 rounded-lg border border-slate-200 dark:border-gray-600
+                                                peer-checked:border-primary peer-checked:bg-primary/10
+                                                text-sm font-medium">
+                                            Intermediate
+                                        </div>
+                                    </label>
+
+                                    <label class="cursor-pointer">
+                                        <input type="radio" name="learningLevel" value="advanced" class="peer sr-only">
+                                        <div class="px-4 py-2 rounded-lg border border-slate-200 dark:border-gray-600
+                                                peer-checked:border-primary peer-checked:bg-primary/10
+                                                text-sm font-medium">
+                                            Advanced
+                                        </div>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div class="flex flex-col gap-2">
+                                <label class="text-[#111318] dark:text-white text-sm font-semibold">
+                                    Daily Time Commitment
+                                </label>
+
+                                <div class="flex items-center gap-3">
+                                    <input id="timePerDay" type="number" min="10" max="480" step="10" value="60" class="w-32 rounded-lg border border-[#dbdfe6] dark:border-gray-600
+                                           bg-white dark:bg-gray-900 px-3 py-2 text-sm
+                                           focus:border-primary focus:ring-1 focus:ring-primary" />
+
+                                    <span class="text-sm text-[#616f89] dark:text-gray-400">
+                                        minutes per day
+                                    </span>
+                                </div>
+
+                                <p class="text-xs text-[#616f89] dark:text-gray-400">
+                                    Used to personalize pacing and workload
+                                </p>
+                            </div>
+
+
+                            <!-- <p class="text-xs text-[#616f89] dark:text-gray-400">You can change or regenerate these
+                                later inside the note.</p> -->
+                        </div>
+                    </div>
+                </div>
+                <div class="flex items-center justify-end gap-4 pt-4">
+                    <a href="home.html"
+                        class="px-6 py-3 rounded-lg text-[#616f89] dark:text-gray-300 font-medium hover:text-[#111318] dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+                        Cancel
+                    </a>
+                    <button id="createNoteBtn" type="button"
+                        class="flex items-center justify-center gap-2 px-8 py-3 rounded-lg bg-primary hover:bg-blue-600 text-white font-bold shadow-sm shadow-blue-500/30 transition-all hover:shadow-md hover:shadow-blue-500/40">
+                        <span class="material-symbols-outlined text-[20px]">add</span>
+                        <span class="btn-text-general">Create Note</span>
+                        <span class="btn-text-educational">Create Learning Note</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const createBtn = document.getElementById("createNoteBtn");
+
+        function showAiLoading() {
+            document.getElementById("ai-loading-overlay")?.classList.remove("hidden");
+            document.body.style.overflow = "hidden";
+        }
+
+        function hideAiLoading() {
+            document.getElementById("ai-loading-overlay")?.classList.add("hidden");
+            document.body.style.overflow = "";
+        }
+
+        createBtn.addEventListener("click", async () => {
+            const noteType = document.querySelector(
+                'input[name="note_type"]:checked'
+            ).value;
+
+            const title = document.getElementById("noteTitle").value.trim();
+            if (!title) {
+                alert("Please enter a note title");
+                return;
+            }
+
+            const userId = sessionStorage.getItem("user_id");
+
+            // 🔹 EDUCATIONAL NOTE FLOW (AI)
+            if (noteType === "educational") {
+                createBtn.disabled = true;
+                showAiLoading();
+
+                const level =
+                    document.querySelector('input[name="learningLevel"]:checked')?.value ||
+                    "beginner";
+
+                const timePerDay = parseInt(
+                    document.getElementById("timePerDay").value || "60",
+                    10
+                );
+
+                const courseTopic =
+                    document.getElementById("courseTopic")?.value.trim() || null;
+
+                const res = await fetch(
+                    `http://localhost:8000/api/v1/notebooks/educational?user_id=${userId}`,
+                    {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            topic: title,
+                            level,
+                            time_per_day: timePerDay,
+                            course_topic: courseTopic,
+                        }),
+                    }
+                );
+
+                // if (!res.ok) {
+                //     hideAiLoading();
+                //     createBtn.disabled = false;
+                //     alert("Failed to create learning note");
+                //     return;
+                // }
+
+                const { notebook_id } = await res.json();
+                window.location.href = `notebook.html?noteId=${notebook_id}`;
+                return;
+            }
+
+            // 🔹 GENERAL NOTE FLOW (OLD)
+            const res = await fetch(
+                `http://localhost:8000/api/v1/notebooks?user_id=${userId}`,
+                {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        title,
+                        notebook_type: "general"
+                    })
+                }
+            );
+
+            const data = await res.json();
+            if (!res.ok) {
+                alert("Failed to create notebook");
+                return;
+            }
+
+            window.location.href = `notebook.html?noteId=${data.notebook_id}`;
+        });
+    </script>
+
+
+    <script src="scripts/app.js"></script>
+
+
+    <!-- AI Generation Overlay -->
+    <div id="ai-loading-overlay" class="fixed inset-0 z-[9999] hidden
+             flex items-center justify-center
+             bg-white/80 dark:bg-background-dark/80
+             backdrop-blur-sm">
+
+        <div class="flex flex-col items-center gap-6 text-center max-w-sm px-6">
+
+            <!-- Animated AI icon -->
+            <div class="relative">
+                <div class="absolute inset-0 rounded-full bg-primary/20 animate-ping"></div>
+                <div class="relative size-16 rounded-full bg-primary text-white
+                   flex items-center justify-center shadow-lg">
+                    <span class="material-symbols-outlined text-3xl">auto_awesome</span>
+                </div>
+            </div>
+
+            <!-- Main text -->
+            <div class="flex flex-col gap-2">
+                <h2 class="text-xl font-bold text-[#111318] dark:text-white">
+                    Creating your learning plan
+                </h2>
+                <p class="text-sm text-[#616f89] dark:text-gray-400">
+                    We’re generating a personalized roadmap based on your level and time commitment.
+                </p>
+            </div>
+
+            <!-- Subtle step indicator -->
+            <div class="text-xs text-[#616f89] dark:text-gray-400">
+                Analyzing topic → Building syllabus → Structuring roadmap
+            </div>
+        </div>
+    </div>
+
+
+
+</body>
+
+</html>

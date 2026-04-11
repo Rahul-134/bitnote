@@ -1,0 +1,78 @@
+# ========================
+# IDE / Editor configs
+# ========================
+.idea/
+.vscode/
+*.iml
+
+# ========================
+# Anima design tool
+# ========================
+.anima/
+
+# ========================
+# Python
+# ========================
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+dist/
+build/
+*.egg
+
+# ========================
+# Virtual environments
+# ========================
+venv/
+.venv/
+env/
+.env/
+
+# ========================
+# Environment variables
+# ========================
+.env
+.env.*
+!.env.example
+
+# ========================
+# Secrets & credentials
+# ========================
+firebase_key.json
+*.pem
+*.key
+
+# ========================
+# Database
+# ========================
+*.db
+*.sqlite3
+
+# ========================
+# User uploads (runtime data)
+# ========================
+bitnote-backend/uploads/
+
+# ========================
+# OS-generated files
+# ========================
+.DS_Store
+Thumbs.db
+Desktop.ini
+ehthumbs.db
+
+# ========================
+# Logs
+# ========================
+*.log
+logs/
+
+# ========================
+# Misc
+# ========================
+*.bak
+*.swp
+*.tmp
+*~

@@ -1,0 +1,710 @@
+<!DOCTYPE html>
+<html class="light" lang="en">
+
+<head>
+
+    <script>
+        if (localStorage.getItem("isLoggedIn") !== "true") {
+            window.location.href = "index.html";
+        }
+    </script>
+
+
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>BitNote Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&amp;display=swap"
+        rel="stylesheet" />
+    <link
+        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+        rel="stylesheet" />
+    <link rel="icon" href="bitnote_favicon.png">
+
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#135bec",
+                        "background-light": "#f6f6f8",
+                        "background-dark": "#101622",
+                        "surface-light": "#ffffff",
+                        "surface-dark": "#1a2230",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"]
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.5rem",
+                        "lg": "1rem",
+                        "xl": "1.5rem",
+                        "2xl": "2rem",
+                        "full": "9999px"
+                    },
+                    boxShadow: {
+                        'soft': '0 4px 20px -2px rgba(0, 0, 0, 0.05)',
+                        'hover': '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
+                    }
+                },
+            },
+        }
+    </script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        .view-toggle-active {
+            background-color: white;
+            color: #0f172a;
+            /* slate-900 */
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+        }
+
+        .dark .view-toggle-active {
+            background-color: #334155;
+            /* slate-700 */
+            color: white;
+        }
+    </style>
+    <style>
+        /* List view container */
+        #notebooks_area[data-layout="list"] {
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* List view cards */
+        #notebooks_area[data-layout="list"] .notebook-card {
+            flex-direction: row;
+            align-items: flex-start;
+            gap: 1.5rem;
+            min-height: 200px;
+            padding-top: 1.25rem;
+            padding-bottom: 1.25rem;
+        }
+
+        /* Content area grows */
+        #notebooks_area[data-layout="list"] .notebook-card>div:first-child {
+            flex: 1;
+        }
+
+        /* Footer aligns nicely */
+        #notebooks_area[data-layout="list"] .notebook-card>div:last-child {
+            margin-top: 0;
+            border-top: none;
+            padding-top: 0;
+            /* align-self: center; */
+            align-self: flex-end;
+            margin-left: auto;
+        }
+
+        /* List view: make cards feel like rows */
+        #notebooks_area[data-layout="list"] .notebook-card {
+            align-items: stretch;
+        }
+
+        /* Top content block */
+        #notebooks_area[data-layout="list"] .notebook-card>div:first-child {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        /* Menu button breathing room */
+        #notebooks_area[data-layout="list"] .notebook-menu-btn {
+            margin-top: 0;
+        }
+    </style>
+
+
+
+
+
+</head>
+
+<body
+    class="bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100 min-h-screen flex flex-col font-display selection:bg-primary/20 selection:text-primary"
+    id="body-1">
+    <header
+        class="sticky top-0 z-50 w-full border-b border-slate-200/60 dark:border-slate-800 bg-white/80 dark:bg-background-dark/80 backdrop-blur-md">
+        <div class="px-6 md:px-12 h-16 flex items-center justify-between">
+            <div class="flex items-center gap-4">
+                <a class="flex items-center gap-2 group" href="#">
+                    <div class="flex items-center gap-2">
+                        <img src="Another.png" alt="BitNote Logo" style="width: 35px; height: auto;">
+                        <!-- <span class="text-2xl">📘</span> -->
+                        <h2 class="text-xl font-black leading-tight tracking-[-0.015em]">BitNote</h2>
+                    </div>
+                </a>
+                <div class="hidden md:block h-5 w-px bg-slate-300 dark:bg-slate-700"></div>
+                <span class="hidden md:block text-slate-500 dark:text-slate-400 text-sm font-medium">AI-powered learning
+                    notes</span>
+            </div>
+            <div class="flex items-center gap-4">
+
+                <button id="logoutBtn"
+                    class="text-sm font-medium text-red-600 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-semibold hover:text-white hover:bg-red-500 hover:shadow-md hover:rounded-full transition-all duration-300 hover:shadow-red-300 hover:border-red-700 active:scale-95">
+                    Log Out
+                </button>
+
+                <button id="newNoteBtnHeader"
+                    class="flex items-center justify-center gap-2 h-9 px-4 border border-blue-200 dark:border-blue-800 text-blue-600 dark:text-blue-400 hover:text-white bg-transparent hover:bg-blue-500 hover:border-blue-700 text-sm font-medium rounded-full shadow-sm hover:shadow-blue-700 active:scale-95 transition-all duration-300">
+                    <span class="material-symbols-outlined text-[18px]">add</span>
+                    <span>New Note</span>
+                </button>
+                <button class="relative group cursor-pointer focus:outline-none ml-2">
+                    <div class="size-9 rounded-full border-2 border-white dark:border-background-dark shadow-sm bg-cover bg-center transition-transform active:scale-95"
+                        id="userPic"
+                        data-alt="User profile avatar showing a smiling person"
+                        style='background-image: url("");'>
+                    </div>
+                    <div
+                        class="absolute bottom-0 right-0 size-2.5 bg-green-500 border-2 border-white dark:border-background-dark rounded-full">
+                    </div>
+                </button>
+            </div>
+        </div>
+    </header>
+    <main class="flex-1 w-full max-w-[1600px] mx-auto px-6 md:px-12 py-8 md:py-12" id="body-main-1">
+        <div class="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-8 md:mb-10">
+            <div>
+                <h1 class="text-3xl md:text-4xl font-black text-slate-900 dark:text-white tracking-tight mb-2">Your
+                    Notes</h1>
+                <p class="text-slate-500 dark:text-slate-400 text-base md:text-lg">All your notebooks in one place</p>
+            </div>
+            <div
+                class="flex items-center bg-white dark:bg-surface-dark p-1 rounded-full border border-slate-200 dark:border-slate-700 shadow-sm w-full md:w-auto">
+                <div class="relative group flex-1 md:flex-none">
+                    <span
+                        class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[18px] group-focus-within:text-primary transition-colors">search</span>
+                    <input id="notebook-search"
+                        class="w-full md:w-48 focus:w-full md:focus:w-64 pl-9 pr-3 py-1.5 bg-transparent border-none text-sm text-slate-700 dark:text-slate-200 placeholder-slate-400 focus:ring-0 transition-all duration-300 ease-in-out rounded-full"
+                        placeholder="Search notes…" type="text" />
+                </div>
+                <div class="w-px h-5 bg-slate-200 dark:bg-slate-700 mx-1"></div>
+                <div class="flex items-center gap-1 bg-slate-50 dark:bg-slate-800 rounded-full p-0.5">
+                    <button id="gridViewBtn"
+                        class="p-1.5 rounded-full text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors">
+                        <span class="material-symbols-outlined text-[18px] block">grid_view</span>
+                    </button>
+                    <button id="listViewBtn"
+                        class="p-1.5 rounded-full text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors">
+                        <span class="material-symbols-outlined text-[18px] block">list</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+        <div data-layout="grid" class="note-card grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
+            id="notebooks_area">
+            <button id="newNoteBtnCard"
+                class="group flex flex-col items-center justify-center bg-transparent rounded-2xl p-5 border-2 border-dashed border-slate-200 hover:border-primary/50 hover:bg-primary/5 transition-all duration-300 h-[240px]">
+                <div
+                    class="size-12 rounded-full bg-slate-50 group-hover:bg-white flex items-center justify-center text-slate-400 group-hover:text-primary shadow-sm mb-3 transition-colors">
+                    <span class="material-symbols-outlined text-[24px]">add</span>
+                </div>
+                <span class="text-slate-500 font-semibold group-hover:text-primary transition-colors">Create new
+                    note</span>
+            </button>
+        </div>
+    </main>
+
+    <script>
+        document.getElementById("newNoteBtnHeader")
+            ?.addEventListener("click", () => {
+                window.location.href = "create-note.html";
+            });
+
+        document.getElementById("newNoteBtnCard")
+            ?.addEventListener("click", () => {
+                window.location.href = "create-note.html";
+            });
+
+    </script>
+
+    <script src="scripts/app.js"></script>
+
+    <script>
+        const logoutBtn = document.getElementById("logoutBtn");
+
+        logoutBtn.addEventListener("click", () => {
+            // 1. Clear auth state
+            localStorage.removeItem("isLoggedIn");
+            localStorage.removeItem("image");
+            sessionStorage.clear();
+
+            // 2. Redirect to landing page
+            window.location.href = "index.html";
+        });
+
+        window.addEventListener("DOMContentLoaded", async () => {
+            // const notebooks =
+            //     JSON.parse(localStorage.getItem("notebooks")) || [];
+
+            const container = document.getElementById("notebooks_area");
+            const gridBtn = document.getElementById("gridViewBtn");
+            const listBtn = document.getElementById("listViewBtn");
+
+            function setActiveView(view) {
+                if (view === "grid") {
+                    gridBtn.classList.add("view-toggle-active");
+                    listBtn.classList.remove("view-toggle-active");
+                } else {
+                    listBtn.classList.add("view-toggle-active");
+                    gridBtn.classList.remove("view-toggle-active");
+                }
+            }
+
+            function applyView(view) {
+                if (view === "list") {
+                    container.dataset.layout = "list";
+                    container.classList.remove(
+                        "grid",
+                        "grid-cols-1",
+                        "sm:grid-cols-2",
+                        "lg:grid-cols-3",
+                        "xl:grid-cols-4"
+                    );
+                    container.classList.add("flex", "flex-col");
+                    setActiveView("list");
+                } else {
+                    container.dataset.layout = "grid";
+                    container.classList.remove("flex", "flex-col");
+                    container.classList.add(
+                        "grid",
+                        "grid-cols-1",
+                        "sm:grid-cols-2",
+                        "lg:grid-cols-3",
+                        "xl:grid-cols-4"
+                    );
+                    setActiveView("grid");
+                }
+                localStorage.setItem("notebookView", view);
+            }
+
+            gridBtn.addEventListener("click", () => {
+                applyView("grid")
+                gridBtn.classList.add("text-slate-700");
+                listBtn.classList.remove("text-slate-700");
+            });
+            listBtn.addEventListener("click", () => {
+                applyView("list")
+                gridBtn.classList.remove("text-slate-700");
+                listBtn.classList.add("text-slate-700");
+            });
+
+
+            const userId = sessionStorage.getItem("user_id");
+            const notebooks = await fetch(`http://localhost:8000/api/v1/notebooks?user_id=${userId}`).then(r => r.json());
+
+            const notebookArea = document.getElementById("notebooks_area");
+
+            if (!notebookArea) {
+                console.error("Notebook area not found");
+                return;
+            }
+
+            const savedView = localStorage.getItem("notebookView") || "grid";
+
+            if (savedView === "list") {
+                container.dataset.layout = "list";
+                container.classList.remove(
+                    "grid",
+                    "grid-cols-1",
+                    "sm:grid-cols-2",
+                    "lg:grid-cols-3",
+                    "xl:grid-cols-4"
+                );
+                container.classList.add("flex", "flex-col");
+                setActiveView("list");
+            } else {
+                setActiveView("grid");
+            }
+
+
+            notebooks.forEach(note => {
+                const card = document.createElement("div");
+                card.dataset.noteId = note.notebook_id;
+                card.dataset.originalTitle = note.title
+
+                card.className = `
+                            notebook-card
+                            group relative flex flex-col justify-between
+                            bg-white dark:bg-surface-dark
+                            rounded-2xl p-5
+                            border border-slate-200/60 dark:border-slate-700/60
+                            shadow-soft hover:shadow-hover hover:-translate-y-1
+                            transition-all duration-300 ease-out h-[240px]
+                        `;
+
+
+                card.innerHTML = `
+            <div class="flex-1 overflow-hidden">
+                <div class="flex items-start justify-between mb-3">
+                    <h3 class="text-lg font-bold text-slate-900 dark:text-white line-clamp-2 leading-tight group-hover:text-primary transition-colors">
+                        ${note.title}
+                    </h3>
+                    <div class="relative">
+                        <button
+                            class="notebook-menu-btn p-1 -mr-2 -mt-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 dark:hover:bg-slate-700 transition-colors z-10"
+                            data-id="${note.notebook_id}">
+                            <span class="material-symbols-outlined text-[20px]">more_vert</span>
+                        </button>
+
+                        <div
+                            class="notebook-menu hidden absolute right-0 mt-2 w-40 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-lg z-50">
+                            <button class="rename-notebook block w-full text-left px-4 py-2 text-sm hover:bg-slate-100 dark:hover:bg-slate-700">
+                                Rename
+                            </button>
+                            <button class="delete-notebook block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20">
+                                Delete
+                            </button>   
+                        </div>
+                    </div>
+
+                </div>
+                <div class="mb-4">
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/50">
+                        ${note.notebook_type.charAt(0).toUpperCase() + note.notebook_type.slice(1)}
+                    </span>
+                </div>
+                <div class="relative">
+                    <p class="text-sm text-slate-500 dark:text-slate-400 leading-relaxed">
+                        ${note.description}
+                    </p>
+                    <div class="absolute bottom-0 left-0 w-full h-4 bg-gradient-to-t from-white dark:from-surface-dark to-transparent pointer-events-none"></div>
+                </div>
+            </div>
+            <div class="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center gap-1.5">
+                <span class="material-symbols-outlined text-[14px] text-slate-400">schedule</span>
+                <span class="text-xs text-slate-500 dark:text-slate-400 font-medium">Edited ${formatTimestamp(note.created_at)}</span>
+            </div>
+            `;
+
+                notebookArea.appendChild(card);
+
+                card.addEventListener("click", (e) => {
+                    // If click came from menu or its children → do NOTHING
+                    if (e.target.closest(".notebook-menu") || e.target.closest(".notebook-menu-btn")) {
+                        return;
+                    }
+
+                    window.location.href = `notebook.html?noteId=${card.dataset.noteId}`;
+                });
+
+            });
+        });
+
+        function formatTimestamp(ts) {
+            return new Date(ts * 1000).toLocaleString(undefined, {
+                year: "numeric",
+                month: "short",
+                day: "numeric",
+                hour: "2-digit",
+                minute: "2-digit"
+            });
+        }
+    </script>
+
+
+
+    <!-- Rename Notebook Modal -->
+    <div id="rename-modal"
+        class="rename-modal modal-backdrop hidden fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div
+            class="bg-white dark:bg-surface-dark rounded-2xl shadow-hover w-full max-w-md border border-slate-200 dark:border-slate-700">
+            <!-- Header -->
+            <div class="px-6 pt-6 pb-4 border-b border-slate-100 dark:border-slate-800">
+                <h2 class="text-xl font-bold text-slate-900 dark:text-white mb-1">Rename notebook</h2>
+                <p class="text-sm text-slate-500 dark:text-slate-400">Enter a new name for this notebook</p>
+            </div>
+
+            <!-- Body -->
+            <div class="px-6 py-5">
+                <input type="text" id="rename-input" placeholder="Notebook name"
+                    class="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all" />
+            </div>
+
+            <!-- Footer -->
+            <div class="px-6 pb-6 flex items-center justify-end gap-3">
+                <button id="rename-cancel-btn"
+                    class="px-4 py-2 text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors">
+                    Cancel
+                </button>
+                <button id="rename-save-btn"
+                    class="px-4 py-2 text-sm font-semibold text-white bg-primary hover:bg-blue-700 rounded-lg shadow-sm hover:shadow-md active:scale-95 transition-all">
+                    Save
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Delete Notebook Modal -->
+    <div id="delete-modal"
+        class="delete-modal modal-backdrop hidden fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div
+            class="bg-white dark:bg-surface-dark rounded-2xl shadow-hover w-full max-w-md border border-slate-200 dark:border-slate-700">
+            <!-- Header -->
+            <div class="px-6 pt-6 pb-4 border-b border-slate-100 dark:border-slate-800">
+                <div class="flex items-center gap-3">
+                    <div class="size-10 rounded-full bg-red-100 dark:bg-red-900/20 flex items-center justify-center">
+                        <span class="material-symbols-outlined text-red-600 dark:text-red-400 text-[20px]">delete</span>
+                    </div>
+                    <h2 class="text-xl font-bold text-slate-900 dark:text-white">Delete notebook?</h2>
+                </div>
+            </div>
+
+            <!-- Body -->
+            <div class="px-6 py-5">
+                <p class="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
+                    This notebook and all its contents will be permanently deleted. This action cannot be undone.
+                </p>
+            </div>
+
+            <!-- Footer -->
+            <div class="px-6 pb-6 flex items-center justify-end gap-3">
+                <button id="delete-cancel-btn"
+                    class="px-4 py-2 text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors">
+                    Cancel
+                </button>
+                <button id="delete-confirm-btn"
+                    class="px-4 py-2 text-sm font-semibold text-white bg-red-600 hover:bg-red-700 rounded-lg shadow-sm hover:shadow-md active:scale-95 transition-all">
+                    Delete
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let activeNotebookCard = null;
+    </script>
+
+    <script>
+        // document.addEventListener("click", () => {
+        //     document.querySelectorAll(".notebook-menu").forEach(m => m.classList.add("hidden"));
+        // });
+
+        document.addEventListener("click", (e) => {
+            const btn = e.target.closest(".notebook-menu-btn");
+            if (!btn) return;
+
+            e.preventDefault();
+            e.stopImmediatePropagation();
+
+            const menu = btn.nextElementSibling;
+            const isOpen = !menu.classList.contains("hidden");
+
+            // Close all menus first
+            document.querySelectorAll(".notebook-menu").forEach(m => m.classList.add("hidden"));
+
+            // Toggle ONLY if it was previously closed
+            if (!isOpen) {
+                menu.classList.remove("hidden");
+            }
+        });
+
+
+        document.addEventListener("click", (e) => {
+            const btn = e.target.closest(".rename-notebook");
+            if (!btn) return;
+
+            e.preventDefault();
+            e.stopPropagation();
+
+            activeNotebookCard = btn.closest("[data-note-id]");
+            if (!activeNotebookCard) return;
+
+            const renameModal = document.getElementById("rename-modal");
+            const renameInput = document.getElementById("rename-input");
+
+            renameInput.value = activeNotebookCard.querySelector("h3").textContent.trim();
+            renameModal.classList.remove("hidden");
+        });
+
+
+        document.addEventListener("click", (e) => {
+            const btn = e.target.closest(".delete-notebook");
+            if (!btn) return;
+
+            e.preventDefault();
+            e.stopPropagation();
+
+            activeNotebookCard = btn.closest("[data-note-id]");
+            if (!activeNotebookCard) return;
+
+            document.getElementById("delete-modal").classList.remove("hidden");
+        });
+
+        document.getElementById("rename-cancel-btn")
+            .addEventListener("click", () => {
+                document.getElementById("rename-modal").classList.add("hidden");
+                activeNotebookCard = null;
+            });
+
+        document.getElementById("delete-cancel-btn")
+            .addEventListener("click", () => {
+                document.getElementById("delete-modal").classList.add("hidden");
+                activeNotebookCard = null;
+            });
+
+        document.getElementById("rename-save-btn")
+            .addEventListener("click", async () => {
+                if (!activeNotebookCard) return;
+
+                const input = document.getElementById("rename-input");
+                const newTitle = input.value.trim();
+                if (!newTitle) return;
+
+                const notebookId = activeNotebookCard.dataset.noteId;
+                const userId = sessionStorage.getItem("user_id");
+
+                const res = await fetch(
+                    `http://localhost:8000/api/v1/notebooks/${notebookId}/rename?user_id=${userId}`,
+                    {
+                        method: "PATCH",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ title: newTitle }),
+                    }
+                );
+
+                if (!res.ok) {
+                    alert("Rename failed");
+                    return;
+                }
+
+                activeNotebookCard.querySelector("h3").textContent = newTitle;
+                document.getElementById("rename-modal").classList.add("hidden");
+                activeNotebookCard = null;
+            });
+
+        document.getElementById("delete-confirm-btn")
+            .addEventListener("click", async () => {
+                if (!activeNotebookCard) return;
+
+                const notebookId = activeNotebookCard.dataset.noteId;
+                const userId = sessionStorage.getItem("user_id");
+
+                const res = await fetch(
+                    `http://localhost:8000/api/v1/notebooks/${notebookId}?user_id=${userId}`,
+                    { method: "DELETE" }
+                );
+
+                if (!res.ok) {
+                    alert("Delete failed");
+                    return;
+                }
+
+                activeNotebookCard.remove();
+                document.getElementById("delete-modal").classList.add("hidden");
+                activeNotebookCard = null;
+            });
+
+        document.querySelectorAll(".modal-backdrop").forEach(backdrop => {
+            backdrop.addEventListener("click", (e) => {
+                if (e.target === backdrop) {
+                    backdrop.classList.add("hidden");
+                    activeNotebookCard = null;
+                }
+            });
+        });
+
+        (() => {
+            const searchInput = document.getElementById("notebook-search");
+            if (!searchInput) return;
+
+            function clearHighlights() {
+                document.querySelectorAll("[data-note-id]").forEach(card => {
+                    const titleEl = card.querySelector("h3");
+                    if (!titleEl) return;
+
+                    titleEl.innerHTML = titleEl.textContent;
+                    card.classList.remove("opacity-40");
+                });
+            }
+
+            searchInput.addEventListener("input", () => {
+                const query = searchInput.value.trim().toLowerCase();
+                let firstMatch = null;
+
+                document.querySelectorAll("[data-note-id]").forEach(card => {
+                    const titleEl = card.querySelector("h3");
+                    if (!titleEl) return;
+
+                    const originalText = card.dataset.originalTitle;
+                    const lowerText = originalText.toLowerCase();
+
+                    if (!query) {
+                        titleEl.innerHTML = originalText;
+                        card.classList.remove("opacity-40");
+                        return;
+                    }
+
+                    const index = lowerText.indexOf(query);
+
+                    if (index !== -1) {
+                        // Highlight matched text
+                        const before = originalText.slice(0, index);
+                        const match = originalText.slice(index, index + query.length);
+                        const after = originalText.slice(index + query.length);
+
+                        titleEl.innerHTML = `
+          ${before}
+          <span class="bg-yellow-200 dark:bg-yellow-500/30 text-slate-900 dark:text-white rounded px-1">
+            ${match}
+          </span>
+          ${after}
+        `;
+
+                        card.classList.remove("opacity-40");
+
+                        if (!firstMatch) {
+                            firstMatch = card;
+                        }
+                    } else {
+                        titleEl.innerHTML = originalText;
+                        card.classList.add("opacity-40");
+                    }
+                });
+
+                // Scroll to first match
+                if (firstMatch) {
+                    firstMatch.scrollIntoView({
+                        behavior: "smooth",
+                        block: "center",
+                    });
+                }
+            });
+        })();
+
+    </script>
+
+    <script>
+        pic = localStorage.getItem("image");
+        if (pic != null){
+            profile_pic = document.getElementById("userPic");
+            profile_pic.style.backgroundImage = `url(${pic})`
+        }
+    </script>
+
+</body>
+
+</html>

@@ -1,0 +1,25 @@
+# Core framework
+fastapi>=0.127.0
+uvicorn>=0.30.0
+python-multipart>=0.0.9
+
+# AI / LLM
+ollama>=0.4.0
+
+# Authentication
+firebase-admin>=6.0.0
+passlib>=1.7.4
+argon2-cffi>=23.1.0
+
+# Data validation
+pydantic>=2.0.0
+email-validator>=2.0.0
+
+# Email (contact form)
+aiosmtplib>=3.0.0
+
+# HTTP requests
+requests>=2.31.0
+
+# Database (reference models only - actual DB uses sqlite3)
+SQLAlchemy>=2.0.0

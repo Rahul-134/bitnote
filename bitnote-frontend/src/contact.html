@@ -1,0 +1,271 @@
+<!doctype html>
+<html class="light" lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Contact - BitNote</title>
+  <link href="https://fonts.googleapis.com" rel="preconnect" />
+  <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect" />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&amp;family=Noto+Sans:wght@400;500;700;900&amp;display=swap"
+    rel="stylesheet" />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+    rel="stylesheet" />
+  <link rel="icon" href="bitnote_favicon.png" />
+
+  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+  <script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            primary: "#135bec",
+            "background-light": "#f6f6f8",
+            "background-dark": "#101622",
+          },
+          fontFamily: {
+            display: ["Inter", "sans-serif"],
+            body: ["Inter", "sans-serif"],
+          },
+          borderRadius: {
+            DEFAULT: "0.25rem",
+            lg: "0.5rem",
+            xl: "0.75rem",
+            full: "9999px",
+          },
+        },
+      },
+    };
+  </script>
+  <style>
+    body {
+      font-family: "Inter", sans-serif;
+    }
+
+    .material-symbols-outlined {
+      font-variation-settings:
+        "FILL" 0,
+        "wght" 400,
+        "GRAD" 0,
+        "opsz" 24;
+    }
+  </style>
+</head>
+
+
+<body class="bg-background-light dark:bg-background-dark text-text-main dark:text-white transition-colors duration-200">
+  <div class="relative flex h-auto min-h-screen w-full flex-col">
+    <header
+      class="sticky top-0 z-50 flex items-center justify-between whitespace-nowrap border-b border-solid border-b-[#e5e7eb] dark:border-b-gray-800 bg-white/80 dark:bg-[#101622]/90 backdrop-blur-md px-6 py-4 lg:px-40">
+      <div class="flex items-center gap-4 text-[#111318] dark:text-white">
+        <div class="text-primary">
+          <img src="Another.png" alt="BitNote Logo" style="width: 35px; height: auto" />
+        </div>
+        <h2 class="text-xl font-black leading-tight tracking-[-0.015em]">
+          BitNote
+        </h2>
+      </div>
+      <div class="hidden lg:flex flex-1 justify-end gap-8">
+        <nav class="flex items-center gap-9">
+          <a class="text-[#111318] dark:text-gray-300 text-sm font-medium hover:text-primary transition-colors"
+            href="index.html">Home</a>
+          <a class="text-[#111318] dark:text-gray-300 text-sm font-medium hover:text-primary transition-colors"
+            href="explore.html">Explore</a>
+          <a class="text-primary text-sm font-bold active" href="contact.html">Contact</a>
+        </nav>
+        <div class="flex gap-2">
+          <a href="auth.html"
+            class="flex min-w-[120px] items-center justify-center rounded-lg h-10 px-4 bg-blue-700 text-white text-sm font-bold hover:bg-primary transition-colors text-sm font-medium rounded-lg border border-gray-200 px-4 py-2 text-sm font-semibold active:scale-95 transition-all hover:shadow-blue-700">
+            Get Started
+          </a>
+        </div>
+      </div>
+      <button id="menuToggle" class="lg:hidden text-gray-900 dark:text-white">
+        <span class="material-symbols-outlined">menu</span>
+      </button>
+    </header>
+    <!-- Mobile Menu -->
+    <div id="mobileMenu"
+      class="lg:hidden hidden border-b border-gray-100 dark:border-gray-800 bg-white dark:bg-background-dark">
+      <div class="flex flex-col px-6 py-4 gap-4">
+        <a href="index.html"
+          class="text-sm font-medium text-text-main dark:text-gray-300 hover:text-primary transition-colors">Home</a>
+        <a href="explore.html"
+          class="text-sm font-medium text-text-main dark:text-gray-300 hover:text-primary transition-colors">Explore</a>
+        <a href="contact.html" class="text-sm font-semibold text-primary">Contact</a>
+
+        <button id="mobileLoginBtn"
+          class="mt-2 text-sm font-semibold rounded-lg border border-gray-200 bg-white px-4 py-2 hover:bg-primary hover:text-white transition-all">
+          Log In / Sign Up
+        </button>
+      </div>
+    </div>
+    <main class="flex-grow">
+      <!-- Contact Section -->
+      <section class="py-20">
+        <div class="max-w-3xl mx-auto px-6">
+          <h2 class="text-4xl font-bold text-center mb-6">Contact Us</h2>
+          <p class="text-center text-gray-600 mb-10">
+            Have questions, suggestions, or feedback? We'd love to hear from you.
+          </p>
+
+          <form id="contactForm" class="bg-white p-8 rounded-xl shadow-md space-y-6">
+
+            <div>
+              <label class="block mb-2 font-medium">Full Name</label>
+              <input id="name" type="text"
+                class="w-full border rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 outline-none">
+              <p class="text-red-500 text-sm mt-1 hidden" id="nameError">Name is required</p>
+            </div>
+
+            <div>
+              <label class="block mb-2 font-medium">Email</label>
+              <input id="email" type="email"
+                class="w-full border rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 outline-none">
+              <p class="text-red-500 text-sm mt-1 hidden" id="emailError">Valid email required</p>
+            </div>
+
+            <div>
+              <label class="block mb-2 font-medium">Message</label>
+              <textarea id="message" rows="5"
+                class="w-full border rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 outline-none"></textarea>
+              <p class="text-red-500 text-sm mt-1 hidden" id="messageError">Message is required</p>
+            </div>
+
+            <button type="submit"
+              class="w-full bg-blue-600 text-white font-semibold py-3 rounded-lg hover:bg-blue-700 transition">
+              Send Message
+            </button>
+
+            <!-- Toast -->
+            <div id="toast"
+              class=" top-5 right-5 bg-green-600 text-white px-6 py-3 rounded-lg shadow-lg hidden transition">
+              Message sent successfully 🎉
+            </div>
+          </form>
+
+
+        </div>
+      </section>
+    </main>
+  </div>
+
+
+  <script>
+    const form = document.getElementById("contactForm");
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+
+      const name = document.getElementById("name").value.trim();
+      const email = document.getElementById("email").value.trim();
+      const message = document.getElementById("message").value.trim();
+
+      let isValid = true;
+
+      // Reset errors
+      document.querySelectorAll("p[id$='Error']").forEach(el => el.classList.add("hidden"));
+
+      if (!name) {
+        document.getElementById("nameError").classList.remove("hidden");
+        isValid = false;
+      }
+
+      if (!email || !email.includes("@")) {
+        document.getElementById("emailError").classList.remove("hidden");
+        isValid = false;
+      }
+
+      if (!message) {
+        document.getElementById("messageError").classList.remove("hidden");
+        isValid = false;
+      }
+
+      if (!isValid) return;
+
+      // Send to FastAPI
+      try {
+        const response = await fetch("http://127.0.0.1:8000/api/v1/contact/", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name, email, message })
+        });
+
+        const data = await response.json();
+
+        if (response.ok && data.success) {
+          showToast(data.message, false);
+          form.reset();
+        } else {
+          showToast(data.detail || "Something went wrong ❌", true);
+        }
+
+      } catch (error) {
+        console.error("Frontend Error:", error);
+        showToast("Server error ❌", true);
+      }
+    });
+
+    function showToast(message, isError = false) {
+      const toast = document.getElementById("toast");
+
+      toast.innerText = message;
+
+      toast.classList.remove("hidden");
+      toast.classList.remove("bg-green-600", "bg-red-600");
+
+      toast.classList.add(isError ? "bg-red-600" : "bg-green-600");
+
+      setTimeout(() => {
+        toast.classList.add("hidden");
+      }, 3000);
+    }
+  </script>
+
+
+  </div>
+
+  <script>
+    function handleCreateNote() {
+      const isLoggedIn = localStorage.getItem("isLoggedIn");
+
+      if (isLoggedIn === "true") {
+        window.location.href = "create-note.html";
+      } else {
+        sessionStorage.setItem("redirectAfterAuth", "create-note.html");
+        window.location.href = "auth.html";
+      }
+    }
+
+  </script>
+
+
+  <script>
+    const loginBtn = document.getElementById("loginBtn");
+    const logoutBtn = document.getElementById("logoutBtn");
+
+    // ---- Log In ----
+    loginBtn?.addEventListener("click", () => {
+      sessionStorage.setItem("redirectAfterAuth", "home.html");
+      window.location.href = "auth.html";
+    });
+  </script>
+
+  <script src="scripts/app.js"></script>
+
+  <script>
+    const menuToggle = document.getElementById("menuToggle");
+    const mobileMenu = document.getElementById("mobileMenu");
+
+    menuToggle.addEventListener("click", () => {
+      mobileMenu.classList.toggle("hidden");
+    });
+  </script>
+
+
+</body>
+
+</html>

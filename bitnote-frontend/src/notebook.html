@@ -1,0 +1,3241 @@
+<!DOCTYPE html>
+<html class="light" lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>BitNote Editor</title>
+    <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@300;400;500;600;700&amp;display=swap"
+        rel="stylesheet" />
+    <link
+        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+        rel="stylesheet" />
+    <link rel="icon" href="bitnote_favicon.png">
+
+    <!-- KaTeX CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+
+    <!-- KaTeX JS -->
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+        onload="window.renderMathInElement && (window.__katexReady = true);">
+        </script>
+
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#135bec",
+                        "background-light": "#f6f6f8",
+                        "background-dark": "#101622",
+                    },
+                    fontFamily: {
+                        "display": ["Lexend", "sans-serif"]
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                },
+            },
+        }
+    </script>
+    <style>
+        .cell-card {
+            min-height: 400px;
+            max-height: 70vh;
+            display: flex;
+            flex-direction: column;
+            transition: height 0.15s ease;
+        }
+
+        .cell-content {
+            height: 75px;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+        }
+
+
+        .resize-handle {
+            height: 10px;
+            cursor: ns-resize;
+            margin-top: 6px;
+            border-radius: 9999px;
+            background: transparent;
+        }
+
+        .cell-card:not([style]) .cell-content {
+            overflow-y: visible;
+        }
+
+        .resize-handle {
+            display: none;
+        }
+
+        .cell-card.is-overflowing .resize-handle {
+            display: block;
+        }
+
+        .resize-handle::after {
+            content: "";
+            display: block;
+            width: 40px;
+            height: 3px;
+            margin: 3px auto;
+            border-radius: 9999px;
+            background: rgba(0, 0, 0, 0.2);
+        }
+
+
+        .resize-handle:hover {
+            background: rgba(0, 0, 0, 0.08);
+        }
+
+        .cell-actions {
+            opacity: 0;
+            transition: opacity 0.2s ease;
+        }
+
+        .cell-container:hover .cell-actions,
+        .cell-container.active .cell-actions {
+            opacity: 1;
+        }
+
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+
+        .tooltip-trigger:hover .tooltip-content {
+            opacity: 1;
+            transform: translate(-50%, -8px);
+            pointer-events: auto;
+        }
+
+        .cell-container.active .cell-card {
+            border-color: rgb(191 219 254);
+            /* blue-200 */
+            box-shadow: 0 0 0 4px rgb(219 234 254);
+            /* blue-50 */
+        }
+
+        .cell-menu {
+            position: absolute;
+            right: 2.5rem;
+            top: 2.5rem;
+            z-index: 20;
+        }
+
+        .katex-display {
+            margin: 0.75rem 0;
+            overflow: hidden;
+        }
+
+        .katex {
+            font-size: 1.05em;
+        }
+
+        .cell-attachments {
+            margin-top: 14px;
+            padding: 14px 16px;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+        }
+
+
+        .dark .cell-attachments {
+            background: #1e293b;
+            border-color: #334155;
+        }
+
+        /* .cell-card+.cell-attachments {
+            border-top: none;
+        } */
+
+        .attachment-list {
+            max-height: 140px;
+            overflow-y: auto;
+        }
+
+        .cell-attachments {
+            border-left: 3px solid #cbd5e1;
+        }
+
+        .dark .cell-attachments {
+            border-left-color: #475569;
+        }
+    </style>
+
+    <script>
+        if (localStorage.getItem("isLoggedIn") !== "true") {
+            sessionStorage.setItem("redirectAfterAuth", "notebook.html");
+            window.location.href = "auth.html";
+        }
+    </script>
+
+    <script>
+
+        let tasks = [];
+
+        const params = new URLSearchParams(window.location.search);
+        const noteId = params.get("noteId");
+
+        if (!noteId) {
+            alert("Invalid notebook");
+            window.location.href = "home.html";
+        }
+
+        const userId = sessionStorage.getItem("user_id");
+
+        async function loadNotebook() {
+            const res = await fetch(`http://localhost:8000/api/v1/notebooks/${noteId}?user_id=${userId}`);
+            const note = await res.json();
+
+            if (note.error) {
+                alert("Notebook not found");
+                window.location.href = "home.html";
+                return;
+            }
+
+            document.getElementById("notebookTitle").value = note.title;
+
+            document.getElementById("noteTypeBadge").textContent =
+                note.notebook_type === "educational"
+                    ? "Educational Note"
+                    : "General Note";
+        }
+
+    </script>
+
+
+
+</head>
+
+<body
+    class="bg-background-light dark:bg-background-dark text-slate-900 dark:text-white font-display flex flex-col h-screen overflow-hidden">
+    <header
+        class="flex-none flex items-center justify-between border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-6 py-3 z-20">
+        <div class="flex items-center gap-4">
+            <div class="flex items-center gap-2">
+                <img src="Another.png" alt="BitNote Logo" style="width: 35px; height: auto;">
+                <!-- <span class="text-2xl">📘</span> -->
+                <h2 class="text-xl font-bold">BitNote</h2>
+            </div>
+            <div class="h-6 w-px bg-slate-200 dark:bg-slate-700 mx-2"></div>
+            <div class="flex flex-col">
+                <input id="notebookTitle"
+                    class="bg-transparent border-none p-0 text-base font-bold text-slate-900 dark:text-white focus:ring-0 placeholder-slate-400 w-64 leading-tight"
+                    type="text" />
+                <div class="flex items-center gap-2 mt-0.5">
+                    <span id="noteTypeBadge"
+                        class="inline-flex items-center rounded-full bg-blue-50 dark:bg-blue-900/30 px-2 py-0.5 text-xs font-medium text-primary ring-1 ring-inset ring-blue-700/10">Educational
+                        Note</span>
+                    <span class="text-xs text-slate-400 dark:text-slate-500">Last edited just now</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="flex items-center gap-3">
+            <!-- Progress Bar -->
+            <div id="learningProgressBar"
+                class="flex items-center gap-3 px-4 py-2 bg-slate-50 dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
+                <span class="text-xs font-medium text-slate-600 dark:text-slate-400">Progress</span>
+                <div class="w-32 h-2 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                    <div class="h-full bg-gradient-to-r from-primary to-blue-600 rounded-full" id="progressBarFill"
+                        style="width: 0%"></div>
+                </div>
+                <span class="text-xs font-bold text-primary" id="progressPercent">0%</span>
+            </div>
+
+            <div class="relative">
+                <button id="saveBtn" disabled
+                    class="flex items-center gap-2 rounded-lg px-4 py-2 bg-primary text-white text-sm font-bold opacity-40 cursor-not-allowed transition-all">
+                    <span class="material-symbols-outlined text-[18px]">save</span>
+                    Save
+                </button>
+
+                <!-- Unsaved indicator -->
+                <span id="unsavedDot"
+                    class="hidden absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-amber-400 ring-2 ring-white animate-pulse">
+                </span>
+            </div>
+
+
+
+            <button id="recallBtn"
+                class="flex items-center justify-center rounded-lg px-4 py-2 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-sm font-bold hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">
+                Recall
+            </button>
+        </div>
+    </header>
+
+    <main class="flex-1 flex overflow-hidden">
+        <!-- Learning Panel (Left Side) -->
+        <aside id="learningPanel"
+            class="w-72 flex-none bg-gradient-to-b from-slate-50 to-white dark:from-slate-900 dark:to-slate-900 border-r border-slate-200 dark:border-slate-800 flex flex-col overflow-hidden">
+            <div class="p-5 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+                <div class="flex items-center justify-between mb-2">
+                    <h3 class="text-sm font-bold text-slate-900 dark:text-white">Learning Roadmap</h3>
+                    <!-- <span id="learningPanelArrow" class="material-symbols-outlined text-[20px] transition-transform">
+                        chevron_left
+                    </span> -->
+                </div>
+                <p class="text-xs text-slate-500 dark:text-slate-400">Your learning plan</p>
+            </div>
+
+            <div class="flex-1 overflow-y-auto p-4 space-y-4" id="learningPanelContent">
+                <!-- Week 1 - Active/Current Week -->
+                <div
+                    class="rounded-xl border-l-4 border-l-primary border-y border-r border-blue-100 dark:border-blue-900/30 bg-gradient-to-br from-blue-50 to-white dark:from-blue-950/20 dark:to-slate-800/50 shadow-md">
+                    <button
+                        class="w-full flex items-center justify-between p-4 text-left hover:bg-blue-50/50 dark:hover:bg-blue-950/30 transition-all rounded-xl">
+                        <div class="flex items-center gap-2.5">
+                            <span class="material-symbols-outlined text-primary text-[20px]">expand_more</span>
+                            <div class="flex items-center gap-3 pl-2">
+                                <div>
+                                    <h3
+                                        class="text-sm font-bold text-slate-900 dark:text-white group-hover/card:text-primary transition-colors">
+                                        Week 1: Basics</h3>
+                                    <div class="flex items-center gap-2 mt-0.5">
+                                        <span
+                                            class="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 px-1.5 py-px rounded">IN
+                                            PROGRESS</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                        </div>
+                        <div
+                            class="flex items-center gap-1.5 bg-primary/10 dark:bg-primary/20 px-2.5 py-1 rounded-full">
+                            <span class="text-xs font-bold text-primary"></span>
+                            <span class="text-xs text-primary/60"></span>
+                            <span class="text-xs font-medium text-primary/80"></span>
+                        </div>
+                    </button>
+                    <div class="px-4 pb-4 space-y-3">
+                        <!-- Day 1 -->
+                        <!-- <div class="pl-7 space-y-2">
+                            <div class="text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2">
+                            </div>
+                            <label
+                                class="flex items-start gap-2 text-sm cursor-pointer text-emerald-700 dark:text-emerald-400">
+                                <input type="checkbox" checked
+                                    class="w-4 h-4 rounded border-emerald-400 dark:border-emerald-600 text-emerald-600 dark:text-emerald-500 focus:ring-emerald-500 focus:ring-offset-0" />
+                                <span class="line-through decoration-emerald-500/40"></span>
+                            </label>
+                            <label
+                                class="flex items-start gap-2 text-sm cursor-pointer text-emerald-700 dark:text-emerald-400">
+                                <input type="checkbox" checked
+                                    class="w-4 h-4 rounded border-emerald-400 dark:border-emerald-600 text-emerald-600 dark:text-emerald-500 focus:ring-emerald-500 focus:ring-offset-0" />
+                                <span class="line-through decoration-emerald-500/40"></span>
+                            </label>
+                        </div> -->
+                        <!-- Day 2 -->
+                        <!-- <div class="pl-7 space-y-2">
+                            <div class="text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2">Day 2: Practice
+                            </div>
+                            <label
+                                class="flex items-start gap-2 text-sm cursor-pointer text-emerald-700 dark:text-emerald-400">
+                                <input type="checkbox" checked
+                                    class="w-4 h-4 rounded border-emerald-400 dark:border-emerald-600 text-emerald-600 dark:text-emerald-500 focus:ring-emerald-500 focus:ring-offset-0" />
+                                <span class="line-through decoration-emerald-500/40">Complete exercises</span>
+                            </label>
+                            <label
+                                class="flex items-start gap-3 p-2 rounded-lg bg-blue-50/60 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-900/30">
+                                <input type="checkbox"
+                                    class="w-4 h-4 rounded border-slate-300 dark:border-slate-600 text-primary focus:ring-primary focus:ring-offset-0" />
+                                <div class="flex flex-col">
+                                    <span class="font-medium text-slate-900 dark:text-white">
+                                        Build sample project
+                                    </span>
+                                    <span class="text-[10px] text-primary font-semibold">
+                                        Current Task
+                                    </span>
+                                </div>
+                            </label>
+                            <label
+                                class="flex items-center gap-2.5 text-xs text-slate-700 dark:text-slate-300 cursor-pointer hover:text-primary dark:hover:text-primary transition-colors">
+                                <input type="checkbox"
+                                    class="w-4 h-4 rounded border-slate-300 dark:border-slate-600 text-primary focus:ring-primary focus:ring-offset-0" />
+                                <span>Review solution</span>
+                            </label>
+                        </div> -->
+                    </div>
+                </div>
+
+                <!-- Week 2 - Future Week -->
+                <!-- <div
+                    class="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/30 shadow-sm hover:shadow-md transition-shadow">
+                    <button
+                        class="w-full flex items-center justify-between p-4 text-left hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors rounded-xl">
+                        <div class="flex items-center gap-2.5">
+                            <span
+                                class="material-symbols-outlined text-slate-400 dark:text-slate-500 text-[20px]">chevron_right</span>
+                            <span class="text-sm font-semibold text-slate-700 dark:text-slate-300">Week 2: Advanced
+                                Topics</span>
+                        </div>
+                        <div class="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-700 px-2.5 py-1 rounded-full">
+                            <span class="text-xs font-bold text-slate-500 dark:text-slate-400">0</span>
+                            <span class="text-xs text-slate-400">/</span>
+                            <span class="text-xs font-medium text-slate-500 dark:text-slate-400">4</span>
+                        </div>
+                    </button>
+                </div> -->
+
+                <!-- Week 3 - Future Week -->
+                <!-- <div
+                    class="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/30 shadow-sm hover:shadow-md transition-shadow">
+                    <button
+                        class="w-full flex items-center justify-between p-4 text-left hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors rounded-xl">
+                        <div class="flex items-center gap-2.5">
+                            <span
+                                class="material-symbols-outlined text-slate-400 dark:text-slate-500 text-[20px]">chevron_right</span>
+                            <span class="text-sm font-semibold text-slate-700 dark:text-slate-300">Week 3:
+                                Mastery</span>
+                        </div>
+                        <div class="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-700 px-2.5 py-1 rounded-full">
+                            <span class="text-xs font-bold text-slate-500 dark:text-slate-400">0</span>
+                            <span class="text-xs text-slate-400">/</span>
+                            <span class="text-xs font-medium text-slate-500 dark:text-slate-400">6</span>
+                        </div>
+                    </button>
+                </div> -->
+            </div>
+        </aside>
+
+        <!-- Learning Panel Toggle Button -->
+        <button id="learningPanelToggle" class="absolute top-24 left-[18rem] z-30
+           w-8 h-8 flex items-center justify-center
+           rounded-full bg-white dark:bg-slate-800
+           border border-slate-200 dark:border-slate-700
+           shadow-md text-slate-500 hover:text-primary
+           transition-all">
+            <span id="learningPanelArrow" class="material-symbols-outlined text-[20px] transition-transform">
+                chevron_left
+            </span>
+        </button>
+
+
+        <!-- Main Editor Area -->
+        <span class="mt-8 text-start" style="margin-left: 25px; margin-top: 0px; display: inline-block; width: 120px;">
+            <a class="text-sm font-medium text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 transition-colors"
+                href="home.html">
+                ← Back to Home
+            </a>
+        </span>
+        <div id="editorScrollContainer"
+            class="flex-1 overflow-y-auto relative no-scrollbar bg-background-light dark:bg-background-dark"
+            style="justify-content: center; align-items: center;">
+            <div class="max-w-3xl mx-auto px-8 py-12 flex flex-col gap-8 pb-32">
+
+                <div class="group relative" id="cellsContainer">
+
+                    <div class="cell-actions absolute -right-12 top-2 flex flex-col gap-2">
+                        <button
+                            class="p-2 text-slate-400 hover:text-red-500 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                            title="Delete Cell">
+                            <span class="material-symbols-outlined text-[20px]">delete</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="flex flex-col items-center gap-2 mt-4 group/add">
+                    <div
+                        class="h-px w-full bg-slate-200 dark:bg-slate-800 group-hover/add:bg-primary/30 transition-colors">
+                    </div>
+                    <button id="addCellBtn"
+                        class="px-5 py-2 rounded-full bg-white dark:bg-slate-800 shadow-sm border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 text-sm font-medium hover:text-primary hover:border-primary hover:shadow-md transition-all flex items-center -mt-6">
+                        <span class="material-symbols-outlined text-[18px] mr-2">add</span>
+                        Add Cell
+                        <!-- <span
+                            class="max-w-0 overflow-hidden group-hover:max-w-xs transition-all duration-500 ease-out whitespace-nowrap opacity-0 group-hover:opacity-100 text-xs text-slate-400 font-normal group-hover:ml-2 border-l border-slate-300 dark:border-slate-600 pl-2">
+                            Text • PDF • Video
+                        </span> -->
+                    </button>
+                </div>
+            </div>
+        </div>
+        <aside id="aiSidebar"
+            class="w-[360px] flex-none bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 flex flex-col z-10 shadow-xl hidden">
+            <div class="p-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                <div class="flex items-center gap-2 text-slate-900 dark:text-white font-bold">
+                    <span class="material-symbols-outlined text-primary">auto_awesome</span>
+                    BitBuddy
+                </div>
+                <button id="closeAiSidebar" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300">
+                    <span class="material-symbols-outlined">close</span>
+                </button>
+            </div>
+            <div id="aiChatContainer" class="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50/50 dark:bg-slate-900/50">
+            </div>
+
+            <div class="p-4 bg-white dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800">
+                <div class="relative">
+                    <input id="aiPromptInput"
+                        class="w-full pl-4 pr-10 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:ring-1 focus:ring-primary focus:border-primary text-slate-900 dark:text-white placeholder-slate-400 transition-shadow"
+                        placeholder="Ask about the selected cell..." type="text" />
+                    <button id="aiSendBtn"
+                        class="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-primary hover:bg-primary/10 rounded-lg transition-colors">
+                        <span class="material-symbols-outlined text-[20px]">send</span>
+                    </button>
+                </div>
+                <p class="text-[10px] text-center text-slate-400 mt-2">BitBuddy can make mistakes. Check important info.
+                </p>
+            </div>
+        </aside>
+    </main>
+
+
+    <script>
+        // ===== Cell Selection Logic (FINAL) =====
+
+        const editor = document.querySelector("main");
+
+        function clearActiveCells() {
+            document
+                .querySelectorAll(".cell-container.active")
+                .forEach(c => c.classList.remove("active"));
+        }
+
+        editor.addEventListener("click", (e) => {
+            const cell = e.target.closest(".cell-container");
+
+            if (!cell) {
+                clearActiveCells();
+                return;
+            }
+
+            clearActiveCells();
+            cell.classList.add("active");
+        });
+    </script>
+
+    <script>
+
+        let isDirty = false;
+        let dirtyCells = new Set();
+        let dirtyOrder = false;
+        let dirtyTasks = false;
+        let deletedCells = new Set();
+        let dirtyTaskMap = new Map(); // task_id -> status
+
+        // let autosaveTimer = null;
+        // const AUTOSAVE_DELAY = 10000; // 10 seconds
+
+        const undoStack = [];
+        const MAX_UNDO = 50;
+
+        const redoStack = [];
+
+        function markDirty() {
+            if (isDirty) return;
+            isDirty = true;
+            enableSaveButton();
+            showUnsavedDot();
+            // scheduleAutosave();
+        }
+
+        function clearDirty() {
+            isDirty = false;
+            dirtyCells.clear();
+            dirtyOrder = false;
+            dirtyTasks = false;
+            dirtyTaskMap.clear();
+            hideUnsavedDot();
+            disableSaveButton();
+        }
+
+        // function scheduleAutosave() {
+        //     clearTimeout(autosaveTimer);
+
+        //     if (!isDirty) return;
+
+        //     autosaveTimer = setTimeout(async () => {
+        //         const saveBtn = document.getElementById("saveBtn");
+        //         if (!saveBtn.disabled) {
+        //             saveBtn.click();
+        //         }
+        //     }, AUTOSAVE_DELAY);
+        // }
+
+        function pushUndo(action) {
+            undoStack.push(action);
+
+            // Any new action invalidates redo history
+            redoStack.length = 0;
+
+            if (undoStack.length > MAX_UNDO) {
+                undoStack.shift();
+            }
+        }
+
+
+        function enableSaveButton() {
+            const btn = document.getElementById("saveBtn");
+            btn.disabled = false;
+            btn.classList.remove("opacity-40", "cursor-not-allowed");
+        }
+
+        function disableSaveButton() {
+            const btn = document.getElementById("saveBtn");
+            btn.disabled = true;
+            btn.classList.add("opacity-40", "cursor-not-allowed");
+        }
+
+        function showUnsavedDot() {
+            document.getElementById("unsavedDot")?.classList.remove("hidden");
+        }
+
+        function hideUnsavedDot() {
+            document.getElementById("unsavedDot")?.classList.add("hidden");
+        }
+
+        window.addEventListener("keydown", (e) => {
+            const isSaveCombo =
+                (e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s";
+
+            if (!isSaveCombo) return;
+
+            e.preventDefault();
+
+            const saveBtn = document.getElementById("saveBtn");
+            if (!saveBtn.disabled) {
+                saveBtn.click();
+            }
+        });
+
+        window.addEventListener("keydown", (e) => {
+            const isUndo =
+                (e.ctrlKey || e.metaKey) &&
+                !e.shiftKey &&
+                e.key.toLowerCase() === "z";
+
+            if (!isUndo) return;
+
+            e.preventDefault();
+            undoLastAction();
+        });
+
+
+        window.addEventListener("keydown", (e) => {
+            const isRedo =
+                (e.ctrlKey || e.metaKey) &&
+                e.shiftKey &&
+                e.key.toLowerCase() === "z";
+
+            if (!isRedo) return;
+
+            e.preventDefault();
+            redoLastAction();
+        });
+
+
+
+        function undoLastAction() {
+            const action = undoStack.pop();
+            if (!action) return;
+
+            redoStack.push(action);
+
+            if (action.type === "edit") undoEdit(action.payload);
+            if (action.type === "delete") undoDelete(action.payload);
+            if (action.type === "order") restoreOrder(action.before);
+
+            markDirty();
+            refreshMoveButtons();
+        }
+
+
+        function redoLastAction() {
+            const action = redoStack.pop();
+            if (!action) return;
+
+            undoStack.push(action);
+
+            if (action.type === "edit") redoEdit(action.payload);
+            if (action.type === "delete") redoDelete(action.payload);
+            if (action.type === "order") restoreOrder(action.after);
+
+            markDirty();
+            refreshMoveButtons();
+        }
+
+
+        function toggleCellMenu(cellId) {
+
+            if (window.__NOTE_TYPE__ !== "educational") return;
+
+            document
+                .querySelectorAll('[id^="cell-menu-"]')
+                .forEach(el => el.classList.add("hidden"));
+
+            const menu = document.getElementById(`cell-menu-${cellId}`);
+            if (!menu) return;
+
+            menu.innerHTML = "";
+
+            // Only allow weeks that are currently rendered (unlocked)
+            const weekOrder = [...new Set(tasks.map(t => t.week))].sort((a, b) => a - b);
+
+            let currentWeek = null;
+            for (const w of weekOrder) {
+                const weekTasks = tasks.filter(t => t.week === w);
+                if (weekTasks.some(t => t.status === "pending")) {
+                    currentWeek = w;
+                    break;
+                }
+            }
+            if (currentWeek === null && weekOrder.length > 0) {
+                currentWeek = weekOrder[weekOrder.length - 1];
+            }
+
+            // Allowed weeks = rendered weeks
+            const weeks = weekOrder.filter(w => w <= currentWeek);
+
+            weeks.forEach(week => {
+                const item = document.createElement("button");
+                item.className =
+                    "w-full text-left px-3 py-1.5 text-sm hover:bg-slate-100 dark:hover:bg-slate-700";
+                item.textContent = `Move to Week ${week}`;
+                item.onclick = async () => {
+                    await moveCellToWeek(cellId, week);
+                    menu.classList.add("hidden");
+                };
+                menu.appendChild(item);
+            });
+
+            const divider = document.createElement("div");
+            divider.className = "my-1 border-t border-slate-200 dark:border-slate-700";
+            // menu.appendChild(divider);
+
+            // const summarize = document.createElement("button");
+            // summarize.className =
+            //     "w-full text-left px-3 py-1.5 text-sm text-slate-400 cursor-not-allowed";
+            // summarize.textContent = "Summarize (Coming soon)";
+            // menu.appendChild(summarize);
+
+            menu.classList.toggle("hidden");
+        }
+
+
+        function onTaskToggle(taskId, checked) {
+            const newStatus = checked ? "done" : "pending";
+
+            // Update in-memory tasks array
+            const task = tasks.find(t => t.task_id === taskId);
+            if (task) {
+                task.status = newStatus;
+            }
+
+            // Track dirty task
+            dirtyTaskMap.set(taskId, newStatus);
+            dirtyTasks = true;
+            markDirty();
+
+            // Update UI
+            updateProgress(tasks);
+        }
+
+
+
+        const CELL_HEIGHT_KEY = `cellHeights::${noteId}`;
+
+        function getCellHeights() {
+            return JSON.parse(sessionStorage.getItem(CELL_HEIGHT_KEY) || "{}");
+        }
+
+        function setCellHeight(cellId, height) {
+            const heights = getCellHeights();
+            heights[cellId] = height;
+            sessionStorage.setItem(CELL_HEIGHT_KEY, JSON.stringify(heights));
+        }
+
+        function getCellHeight(cellId) {
+            return getCellHeights()[cellId];
+        }
+
+        function clearCellHeight(cellId) {
+            const heights = getCellHeights();
+            delete heights[cellId];
+            sessionStorage.setItem(CELL_HEIGHT_KEY, JSON.stringify(heights));
+        }
+
+
+        async function loadTitle() {
+            const res = await fetch(`http://localhost:8000/api/v1/notebooks/${noteId}?user_id=${userId}`);
+            const note = await res.json();
+            window.__NOTE_TYPE__ = note.notebook_type;
+
+            if (!note) {
+                alert("Notebook not found");
+                window.location.href = "home.html";
+            }
+
+            // ---- Header ----
+            const titleEl = document.getElementById("notebookTitle");
+            const typeBadge = document.getElementById("noteTypeBadge");
+
+            titleEl.value = note.title;
+            titleEl.setAttribute("disabled", true);
+
+            if (note.type === "educational") {
+                typeBadge.textContent = "Educational Note";
+            } else {
+                typeBadge.textContent = "General Note";
+            }
+
+
+
+            // ---- AI availability ----
+            const aiButton = document.getElementById("aiAssistantBtn");
+            const aiSidebar = document.getElementById("aiSidebar");
+            const learningPanel = document.getElementById("learningPanel");
+            const learningPanelToggle = document.getElementById("learningPanelToggle");
+            const progressBar = document.getElementById("learningProgressBar");
+
+            const recallBtn = document.getElementById("recallBtn");
+
+            if (note.notebook_type !== "educational") {
+                aiButton?.classList.add("hidden");
+                aiSidebar?.classList.add("hidden");
+
+                learningPanel?.classList.add("hidden");
+                learningPanelToggle?.classList.add("hidden")
+
+                progressBar?.classList.add("hidden");
+                recallBtn?.classList.add("hidden");
+            }
+        }
+        loadTitle()
+
+        const addCellBtn = document.getElementById("addCellBtn");
+
+        function getWeekTitlesFromTasks(tasks) {
+            const map = {};
+
+            tasks.forEach(t => {
+                if (!map[t.week]) {
+                    map[t.week] = t.week; // placeholder (can be enriched later)
+                }
+            });
+
+            return Object.keys(map)
+                .map(w => Number(w))
+                .sort((a, b) => a - b);
+        }
+
+        function renderWeekSection(weekNumber) {
+            const section = document.createElement("div");
+            section.id = `week-section-${weekNumber}`;
+            section.className = "week-section";
+
+            const header = document.createElement("div");
+            header.id = `week-header-${weekNumber}`;
+            header.className = `
+        sticky top-0 z-10
+        bg-background-light dark:bg-background-dark
+        py-4 mt-8 mb-2
+    `;
+
+            header.innerHTML = `
+        <div class="flex items-center gap-4">
+            <div class="flex-1 h-px bg-slate-200 dark:bg-slate-700"></div>
+            <span class="text-sm font-bold text-slate-600 dark:text-slate-300">
+                Week ${weekNumber}
+            </span>
+            <div class="flex-1 h-px bg-slate-200 dark:bg-slate-700"></div>
+        </div>
+    `;
+
+            const body = document.createElement("div");
+            body.className = "week-cells space-y-4";
+
+            section.appendChild(header);
+            section.appendChild(body);
+
+            return { section, body };
+        }
+
+
+        async function loadCells() {
+            if (!Array.isArray(tasks)) return;
+
+            // Determine current week (same logic as left panel)
+            const weekOrder = [...new Set(tasks.map(t => t.week))].sort((a, b) => a - b);
+
+            let currentWeek = null;
+            for (const w of weekOrder) {
+                const weekTasks = tasks.filter(t => t.week === w);
+                if (weekTasks.some(t => t.status === "pending")) {
+                    currentWeek = w;
+                    break;
+                }
+            }
+
+            // If all done, show last week
+            if (currentWeek === null && weekOrder.length > 0) {
+                currentWeek = weekOrder[weekOrder.length - 1];
+            }
+
+
+            const res = await fetch(
+                `http://localhost:8000/api/v1/notebooks/${noteId}/cells?user_id=${userId}`
+            );
+            const cells = await res.json();
+
+            const container = document.getElementById("cellsContainer");
+            container.innerHTML = "";
+
+            // Educational notebook -> inject week headers
+            if (tasks && tasks.length > 0) {
+                const weeks = getWeekTitlesFromTasks(tasks)
+                    .filter(w => w <= currentWeek);
+
+                // Render week headers ONLY
+                container.innerHTML = "";
+
+                weeks.forEach(weekNumber => {
+                    const { section, body } = renderWeekSection(weekNumber);
+                    container.appendChild(section);
+
+                    cells
+                        .filter(cell => cell.week === weekNumber)
+                        .forEach((cell, index, arr) => {
+                            renderCell(cell, index, arr.length, body);
+                        });
+                });
+
+
+                // Render cells ONCE (not per week)
+                // weeks.forEach(weekNumber => {
+                //     const weekHeader = document.getElementById(`week-header-${weekNumber}`);
+
+                //     cells
+                //         .filter(cell => cell.week === weekNumber)
+                //         .forEach((cell, index, arr) => {
+                //             renderCell(cell, index, arr.length);
+                //         });
+                // });
+
+
+
+            } else {
+                // const { section, body } = renderWeekSection(weekNumber);
+                // Non-educational fallback
+                cells.forEach((cell, index) => {
+                    renderCell(cell, index, cells.length, container);
+                });
+            }
+            refreshMoveButtons();
+        }
+
+
+        async function loadTasks() {
+
+            if (window.__NOTE_TYPE__ !== "educational") {
+                return;
+            }
+
+
+            const res = await fetch(
+                `http://localhost:8000/api/v1/notebooks/${noteId}/tasks?user_id=${userId}`
+            );
+            tasks = await res.json();
+
+            renderLearningPanel(tasks);
+            updateProgress(tasks);
+        }
+
+        function scrollToWeek(weekNumber) {
+            const header = document.getElementById(`week-header-${weekNumber}`);
+            const container = document.getElementById("editorScrollContainer");
+
+            if (!header || !container) return;
+
+            const containerRect = container.getBoundingClientRect();
+            const headerRect = header.getBoundingClientRect();
+
+            const offset =
+                headerRect.top - containerRect.top + container.scrollTop - 16;
+
+            container.scrollTo({
+                top: offset,
+                behavior: "smooth",
+            });
+
+            // Optional subtle highlight (safe, visual only)
+            header.classList.add("ring-2", "ring-primary/40");
+            setTimeout(() => {
+                header.classList.remove("ring-2", "ring-primary/40");
+            }, 800);
+        }
+
+
+        function renderLearningPanel(tasks) {
+            const container = document.getElementById("learningPanelContent");
+            container.innerHTML = "";
+
+            // Determine current week = first week with pending tasks
+            const weekOrder = [...new Set(tasks.map(t => t.week))].sort((a, b) => a - b);
+
+            let currentWeek = null;
+            for (const w of weekOrder) {
+                const weekTasks = tasks.filter(t => t.week === w);
+                if (weekTasks.some(t => t.status === "pending")) {
+                    currentWeek = w;
+                    break;
+                }
+            }
+
+            // Fallback: if all done, last week
+            if (currentWeek === null && weekOrder.length > 0) {
+                currentWeek = weekOrder[weekOrder.length - 1];
+            }
+
+
+            const grouped = {};
+            tasks.forEach(t => {
+                if (!grouped[t.week]) grouped[t.week] = {};
+                if (!grouped[t.week][t.day]) grouped[t.week][t.day] = [];
+                grouped[t.week][t.day].push(t);
+            });
+
+            Object.keys(grouped).forEach(week => {
+                const weekTasks = tasks.filter(t => t.week == week);
+                const doneCount = weekTasks.filter(t => t.status === "done").length;
+                const isCurrentWeek = Number(week) === currentWeek;
+                const isUpcomingWeek = Number(week) > currentWeek;
+
+                const isCompletedWeek =
+                    weekTasks.length > 0 &&
+                    weekTasks.every(t => t.status === "done");
+
+                const weekCard = document.createElement("div");
+                weekCard.className = `
+    rounded-xl shadow-md border transition-all
+    ${isCurrentWeek
+                        ? "border-blue-200 dark:border-blue-900/30 bg-gradient-to-br from-blue-50 to-white dark:from-blue-950/20 dark:to-slate-800/50 border-l-4 border-l-primary"
+                        : isUpcomingWeek
+                            ? "border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/30 opacity-70"
+                            : "border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/30"}
+`;
+
+
+                weekCard.innerHTML = `
+            <button class="w-full flex items-center justify-between p-4 text-left rounded-xl hover:bg-blue-50/40 dark:hover:bg-blue-950/30 transition">
+                <div class="flex items-center gap-3">
+                    <span class="material-symbols-outlined text-[20px] transition-transform
+                        ${isCurrentWeek ? "rotate-180 text-primary" : "text-slate-400"}">
+                        expand_more
+                    </span>
+
+                    <div>
+                        <div class="text-sm font-bold text-slate-900 dark:text-white">
+                            Week ${week}
+                        </div>
+                        
+                        ${isCompletedWeek
+                        ? `<span class="
+                            inline-block mt-1 text-[10px] font-bold
+                            text-emerald-600 bg-emerald-50 dark:bg-emerald-900/20
+                            px-2 py-0.5 rounded-full">COMPLETED</span>`
+                        : isCurrentWeek
+                            ? `<span class="
+                            inline-block mt-1 text-[10px] font-bold
+                            text-blue-600 bg-blue-50 dark:bg-blue-900/20
+                            px-2 py-0.5 rounded-full">IN PROGRESS</span>`
+                            : `<span class="
+                                inline-block mt-1 text-[10px] font-bold
+                                text-slate-400 bg-slate-100 dark:bg-slate-700
+                                px-2 py-0.5 rounded-full">UPCOMING</span>`
+                    }
+
+
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-1.5 bg-primary/10 dark:bg-primary/20 px-2.5 py-1 rounded-full">
+                    <span class="text-xs font-bold text-primary">${doneCount}</span>
+                    <span class="text-xs text-primary/60">/</span>
+                    <span class="text-xs font-medium text-primary/80">${weekTasks.length}</span>
+                </div>
+            </button>
+        `;
+
+                weekCard.addEventListener("click", () => {
+                    if (!isCompletedWeek) return;
+
+                    const target = document.getElementById(`week-header-${week}`);
+                    if (target) {
+                        target.scrollIntoView({
+                            behavior: "smooth",
+                            block: "start"
+                        });
+                    }
+                });
+
+
+                const body = document.createElement("div");
+                body.className = `px-4 pb-4 space-y-4 ${isCurrentWeek ? "" : "hidden"}`;
+
+                const toggleBtn = weekCard.querySelector("button");
+                const arrow = toggleBtn.querySelector(".material-symbols-outlined");
+
+                toggleBtn.addEventListener("click", () => {
+                    // if (isCurrentWeek) return; // optional lock
+                    body.classList.toggle("hidden");
+                    arrow.classList.toggle("rotate-180");
+                });
+
+                Object.keys(grouped[week]).forEach(day => {
+                    const dayBlock = document.createElement("div");
+                    dayBlock.className = "pl-7 space-y-2";
+
+                    dayBlock.innerHTML = `
+                <div class="text-xs font-semibold text-slate-600 dark:text-slate-300 mb-2">
+                    Day ${day}
+                </div>
+            `;
+
+                    grouped[week][day].forEach(task => {
+                        const isDone = task.status === "done";
+
+                        const taskLabel = document.createElement("label");
+                        taskLabel.className = `
+                    flex items-start gap-3 text-sm cursor-pointer
+                    ${isDone
+                                ? "text-emerald-700 dark:text-emerald-400"
+                                : "text-slate-700 dark:text-slate-300"}
+                `;
+
+                        taskLabel.innerHTML = `
+                    <input
+                        type="checkbox"
+                        ${isDone ? "checked" : ""}
+                        class="w-4 h-4 rounded
+                            ${isDone
+                                ? "border-emerald-400 text-emerald-600 focus:ring-emerald-500"
+                                : "border-slate-300 text-primary focus:ring-primary"}
+                        focus:ring-offset-0"
+                        onchange="onTaskToggle('${task.task_id}', this.checked)"
+                    />
+                    <span class="${isDone ? "line-through decoration-emerald-500/40" : ""}">
+                        ${task.task_description}
+                    </span>
+                `;
+
+                        dayBlock.appendChild(taskLabel);
+                    });
+
+                    body.appendChild(dayBlock);
+                });
+
+                weekCard.appendChild(body);
+                container.appendChild(weekCard);
+            });
+        }
+
+        function updateProgress(tasks) {
+
+            if (window.__NOTE_TYPE__ !== "educational") return;
+
+            const total = tasks.length;
+            const done = tasks.filter(t => t.status === "done").length;
+            const percent = total === 0 ? 0 : Math.round((done / total) * 100);
+
+            document.getElementById("progressBarFill").style.width = `${percent}%`;
+            document.getElementById("progressPercent").textContent = `${percent}%`;
+        }
+
+        let activeCell = null
+
+        // ===== BitBuddy Per-Cell Chat State =====
+        let cellChats = {};
+        // {
+        //   cellId: [ { role: "user" | "assistant", content: "" } ]
+        // }
+
+        let currentChatCellId = null;
+        let isThinking = false;
+
+
+        function renderMarkdownSummary(text, container) {
+            container.innerHTML = "";
+
+            const lines = text.split("\n");
+
+            let currentUl = null;
+
+            lines.forEach(line => {
+                const trimmed = line.trim();
+
+                if (!trimmed) return;
+
+                const bulletMatch = trimmed.match(/^(\*|-)\s+(.*)/);
+
+                if (bulletMatch) {
+                    if (!currentUl) {
+                        currentUl = document.createElement("ul");
+                        currentUl.className = "list-disc pl-5 space-y-1.5";
+                        container.appendChild(currentUl);
+                    }
+
+                    const li = document.createElement("li");
+
+                    let content = bulletMatch[2];
+
+                    // simple bold support
+                    content = content.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
+
+                    li.innerHTML = content;
+                    currentUl.appendChild(li);
+                } else {
+                    const p = document.createElement("p");
+                    p.className = "text-sm";
+                    p.textContent = trimmed;
+                    container.appendChild(p);
+                    currentUl = null;
+                }
+            });
+
+            // Render LaTeX math if KaTeX loaded
+            if (window.renderMathInElement) {
+                renderMathInElement(container, {
+                    delimiters: [
+                        { left: "$$", right: "$$", display: true },
+                        { left: "$", right: "$", display: false }
+                    ],
+                    throwOnError: false
+                });
+            }
+
+        }
+
+        function renderMarkdownToContainer(text, container) {
+            container.innerHTML = "";
+
+            const lines = text.split("\n");
+
+            let currentUl = null;
+            let currentOl = null;
+
+            lines.forEach(line => {
+                const trimmed = line.trim();
+                if (!trimmed) return;
+
+                // --- Numbered List (1. 2. 3.)
+                const orderedMatch = trimmed.match(/^\d+\.\s+(.*)/);
+
+                if (orderedMatch) {
+                    if (!currentOl) {
+                        currentOl = document.createElement("ol");
+                        currentOl.className = "list-decimal pl-5 space-y-1.5";
+                        container.appendChild(currentOl);
+                    }
+
+                    const li = document.createElement("li");
+                    let content = orderedMatch[1];
+
+                    content = formatInlineMarkdown(content);
+
+                    li.innerHTML = content;
+                    currentOl.appendChild(li);
+
+                    currentUl = null;
+                    return;
+                }
+
+                // --- Bullet List
+                const bulletMatch = trimmed.match(/^(\*|-)\s+(.*)/);
+
+                if (bulletMatch) {
+                    if (!currentUl) {
+                        currentUl = document.createElement("ul");
+                        currentUl.className = "list-disc pl-5 space-y-1.5";
+                        container.appendChild(currentUl);
+                    }
+
+                    const li = document.createElement("li");
+                    let content = bulletMatch[2];
+
+                    content = formatInlineMarkdown(content);
+
+                    li.innerHTML = content;
+                    currentUl.appendChild(li);
+
+                    currentOl = null;
+                    return;
+                }
+
+                // --- Paragraph
+                const p = document.createElement("p");
+                p.className = "text-sm leading-relaxed";
+                p.innerHTML = formatInlineMarkdown(trimmed);
+
+                container.appendChild(p);
+
+                currentUl = null;
+                currentOl = null;
+            });
+
+            // Render LaTeX
+            if (window.renderMathInElement) {
+                renderMathInElement(container, {
+                    delimiters: [
+                        { left: "$$", right: "$$", display: true },
+                        { left: "$", right: "$", display: false }
+                    ],
+                    throwOnError: false
+                });
+            }
+        }
+
+        function formatInlineMarkdown(text) {
+
+            // Bold
+            text = text.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
+
+            // Italic
+            text = text.replace(/\*(.*?)\*/g, "<em>$1</em>");
+
+            return text;
+        }
+
+
+
+
+        function renderCell(cell, index, totalCells, targetContainer) {
+
+            if (!targetContainer) {
+                console.error("renderCell called without targetContainer", cell);
+                return;
+            }
+
+            const DEFAULT_HEIGHT = 400;
+            const MAX_HEIGHT = window.innerHeight * 3;
+
+            const container = document.getElementById("cellsContainer");
+
+            const wrapper = document.createElement("div");
+            wrapper.className = "cell-container group relative";
+            wrapper.dataset.cellId = cell.cell_id;
+
+            const isFirst = index === 0;
+            const isLast = index === totalCells - 1;
+
+            const isCellEmpty = !cell.content || cell.content.trim().length === 0;
+
+            wrapper.innerHTML = `
+<div class="cell-card bg-white dark:bg-slate-800 rounded-lg p-6 shadow-sm border border-transparent hover:border-slate-200 dark:hover:border-slate-700 transition-all my-4">
+    <div class="cell-content space-y-4">
+        <textarea 
+            class="w-full flex-1 resize-none overflow-y-auto bg-transparent border-none p-0 text-slate-700 dark:text-slate-300 text-lg leading-relaxed focus:ring-0 placeholder-slate-400" 
+            placeholder="Start typing...">${cell.content}</textarea>
+
+        <div class="resize-handle"></div>
+
+
+                                <!-- AI Summary Placeholder (hidden by default) -->
+        <div data-ai-summary class="hidden border-l-4 border-blue-400 bg-blue-50/60 dark:bg-blue-900/20 rounded-md text-sm text-slate-700 dark:text-slate-200">
+
+                                <!-- Header (clickable) -->
+            <div
+                data-ai-summary-toggle
+                role="button"
+                tabindex="0"
+                class="w-full flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-blue-100/60 dark:hover:bg-blue-900/30 transition-colors">
+
+
+                <div class="flex items-center gap-2">
+                    <span class="material-symbols-outlined text-blue-600 text-[18px]">
+                        auto_awesome
+                    </span>
+                    <span class="font-bold text-blue-700 dark:text-blue-300">
+                        AI Summary
+                    </span>
+                </div>
+
+                <div class="flex items-center gap-2">
+                                <!-- Remove Summary -->
+                    <button
+                        type="button"
+                        data-ai-summary-remove
+                        title="Remove summary"
+                        class="p-1.5 rounded-md text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
+                        <span class="material-symbols-outlined text-[18px]">
+                            delete
+                        </span>
+                    </button>
+
+                                <!-- Chevron -->
+                    <span
+                        data-ai-summary-chevron
+                        class="material-symbols-outlined text-blue-600 text-[18px] transition-transform rotate-180">
+                        expand_more
+                    </span>
+                </div>
+            </div>
+
+                                <!-- Body -->
+            <div data-ai-summary-body class="px-4 pb-4 space-y-2 max-h-60 overflow-y-auto">
+                <div data-ai-summary-loading class="hidden text-sm text-slate-400 italic">
+                    Generating summary…
+                </div>
+                <ul data-ai-summary-list class="list-disc pl-5 space-y-1.5"></ul>
+            </div>
+
+        </div>
+        </div>
+
+        
+
+
+
+
+
+        <!-- Attachment Holder -->
+<div class="cell-attachments">
+  <div class="attachment-header flex items-center gap-2 text-xs text-slate-500 mb-2">
+    <span class="material-symbols-outlined text-[16px]">attach_file</span>
+    <span>Attachments</span>
+  </div>
+
+  <div class="attachment-list space-y-2"></div>
+
+  <button class="attach-btn mt-2 text-xs font-medium text-blue-600 hover:text-blue-700 flex items-center gap-1">
+    <span class="material-symbols-outlined text-[14px]">add</span>
+    Attach file
+</button>
+</div>
+
+</div>
+
+
+  <div class="cell-actions absolute -right-12 top-2 flex flex-col gap-2">
+
+    ${window.__NOTE_TYPE__ === "educational" ? `
+    <!-- AI Tools Button -->
+<details
+  class="group/ai relative ${isCellEmpty ? "pointer-events-none" : ""}"
+  data-ai-wrapper>
+
+    <summary data-ai-trigger
+  class="list-none p-2 rounded-full transition-colors [&::-webkit-details-marker]:hidden
+  ${isCellEmpty
+                        ? "text-slate-300 cursor-not-allowed"
+                        : "text-primary hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 cursor-pointer"}"
+  title="${isCellEmpty ? "Add content to use AI tools" : "AI Tools"}">
+      <span class="material-symbols-outlined text-[20px]">auto_awesome</span>
+    </summary>
+
+    <div class="absolute right-10 top-0 bg-white dark:bg-slate-800 ${isCellEmpty ? "opacity-50" : ""} border-2 border-blue-100 dark:border-blue-900 rounded-xl shadow-xl w-56 overflow-hidden z-30 origin-top-right animate-in fade-in zoom-in-95 duration-100">
+      
+      <!-- Header -->
+      <div class="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/40 dark:to-indigo-950/40 px-3 py-2.5 border-b border-blue-100 dark:border-blue-900">
+        <div class="flex items-center gap-2">
+          <span class="material-symbols-outlined text-primary text-[16px]">auto_awesome</span>
+          <span class="text-xs font-bold text-blue-900 dark:text-blue-100 tracking-wide uppercase">AI Tools</span>
+        </div>
+      </div>
+      
+      <!-- Menu Items -->
+      <div
+    class="p-1.5 space-y-0.5">
+        <button data-ai-action="summarize" class="w-full text-left px-3 py-2 text-sm text-slate-700 dark:text-slate-200 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg transition-colors flex items-center gap-2.5 group/item">
+          <span class="material-symbols-outlined text-[18px] text-blue-500 group-hover/item:text-blue-600">summarize</span>
+          <span class="font-medium" data-summarize-label>
+  ${cell.ai_summary ? "Regenerate summary" : "Summarize"}
+</span>
+
+        </button>
+
+        <button data-ai-action="ask"
+            class="w-full text-left px-3 py-2 text-sm 
+            text-slate-700 dark:text-slate-200 
+            hover:bg-blue-50 dark:hover:bg-blue-900/30 
+            rounded-lg transition-colors 
+            flex items-center gap-2.5 group/item">
+            <span class="material-symbols-outlined text-[18px] text-blue-500">
+                chat
+            </span>
+            <span class="font-medium">Ask BitBuddy</span>
+        </button>
+      </div>
+      
+      <!-- Close area/overlay hack to close on click outside (optional but helpful for pure CSS menus) -->
+      <div class="fixed inset-0 z-0 hidden" onclick="this.parentElement.removeAttribute('open')"></div>
+    </div>
+  </details>
+` : ""}
+
+
+  <!-- Move / More menu -->
+  ${window.__NOTE_TYPE__ === "educational" ? `
+  <div class="relative">
+    <button
+      onclick="toggleCellMenu('${cell.cell_id}')"
+      class="p-2 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700">
+      <span class="material-symbols-outlined text-[20px]">more_vert</span>
+    </button>
+
+    <div id="cell-menu-${cell.cell_id}"
+         class="hidden absolute right-10 top-0 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-lg w-40 py-1">
+      <!-- Filled dynamically -->
+    </div>
+  </div>
+  `: ""}
+
+  <!-- Move up -->
+  <button
+  onclick="moveCell('${cell.cell_id}', 'up')"
+  class="move-up-btn p-2 rounded-full text-slate-400
+         hover:bg-slate-100 hover:text-slate-700
+         dark:hover:bg-slate-700
+         transition-colors disabled:opacity-30 disabled:hover:bg-transparent
+         disabled:cursor-not-allowed">
+  <span class="material-symbols-outlined text-[20px]">
+    arrow_upward
+  </span>
+</button>
+
+
+  <!-- Move down -->
+  <button
+  onclick="moveCell('${cell.cell_id}', 'down')"
+  class="move-down-btn p-2 rounded-full text-slate-400
+         hover:bg-slate-100 hover:text-slate-700
+         dark:hover:bg-slate-700
+         transition-colors disabled:opacity-30 disabled:hover:bg-transparent
+         disabled:cursor-not-allowed">
+  <span class="material-symbols-outlined text-[20px]">
+    arrow_downward
+  </span>
+</button>
+
+
+  <!-- Delete -->
+  <button
+  onclick="deleteCell('${cell.cell_id}')"
+  class="p-2 rounded-full text-slate-400
+         hover:bg-slate-100 hover:text-red-500
+         dark:hover:bg-slate-700
+         transition-colors">
+  <span class="material-symbols-outlined text-[20px]">
+    delete
+  </span>
+</button>
+
+
+</div>
+
+</div>
+`;
+
+            const attachmentBox = wrapper.querySelector(".cell-attachments");
+            const attachBtn = wrapper.querySelector(".attach-btn");
+            const attachmentList = wrapper.querySelector(".attachment-list");
+
+            // Hidden file input
+            const fileInput = document.createElement("input");
+            fileInput.type = "file";
+            fileInput.className = "hidden";
+            wrapper.appendChild(fileInput);
+
+            fileInput.addEventListener("change", async () => {
+                const file = fileInput.files[0];
+                if (!file) return;
+
+                const formData = new FormData();
+                formData.append("file", file);
+
+                try {
+                    const res = await fetch(
+                        `http://localhost:8000/api/v1/notebooks/${noteId}/cells/${cell.cell_id}/attachments?user_id=${userId}`,
+                        {
+                            method: "POST",
+                            body: formData
+                        }
+                    );
+
+                    const data = await res.json();
+
+                    renderAttachmentItem(data);
+
+                    attachmentBox.classList.remove("hidden");
+
+                } catch (err) {
+                    alert("Upload failed");
+                }
+
+                fileInput.value = ""; // reset input
+            });
+
+
+            attachBtn.addEventListener("click", () => {
+                fileInput.click();
+            });
+
+            const textarea = wrapper.querySelector("textarea");
+            const aiSummaryBox = wrapper.querySelector("[data-ai-summary]");
+
+            if (cell.ai_summary) {
+                aiSummaryBox.classList.remove("hidden");
+
+                const listEl = aiSummaryBox.querySelector("[data-ai-summary-list]");
+                listEl.innerHTML = "";
+
+                renderMarkdownSummary(cell.ai_summary, listEl);
+            }
+
+            loadAttachments();
+
+            async function loadAttachments() {
+                try {
+                    const res = await fetch(
+                        `http://localhost:8000/api/v1/notebooks/${noteId}/cells/${cell.cell_id}/attachments?user_id=${userId}`
+                    );
+
+                    const attachments = await res.json();
+
+                    if (!attachments || attachments.length === 0) return;
+
+                    attachmentBox.classList.remove("hidden");
+
+                    attachments.forEach(renderAttachmentItem);
+
+                } catch (err) {
+                    console.error("Failed to load attachments");
+                }
+            }
+
+            function renderAttachmentItem(fileData) {
+                const item = document.createElement("div");
+                item.className = `
+        flex items-center justify-between
+        px-3 py-2 rounded-md
+        bg-white dark:bg-slate-700
+        border border-slate-200 dark:border-slate-600
+        text-sm
+    `;
+
+                item.innerHTML = `
+        <div class="flex items-center gap-2 truncate">
+            <span class="material-symbols-outlined text-[18px] text-slate-500">
+                ${fileData.file_type === "pdf" ? "picture_as_pdf"
+                        : fileData.file_type === "image" ? "image"
+                            : "insert_drive_file"}
+            </span>
+            <a href="http://localhost:8000${fileData.url}"
+               target="_blank"
+               class="truncate hover:underline text-slate-700 dark:text-slate-200">
+                ${fileData.file_name}
+            </a>
+        </div>
+
+        <button class="delete-attachment text-slate-400 hover:text-red-500">
+            <span class="material-symbols-outlined text-[18px]">delete</span>
+        </button>
+    `;
+
+                const deleteBtn = item.querySelector(".delete-attachment");
+
+                deleteBtn.addEventListener("click", async () => {
+                    await fetch(
+                        `http://localhost:8000/api/v1/notebooks/${noteId}/cells/${cell.cell_id}/attachments/${fileData.attachment_id}?user_id=${userId}`,
+                        { method: "DELETE" }
+                    );
+
+                    item.remove();
+
+                    if (!attachmentList.children.length) {
+                        attachmentBox.classList.add("hidden");
+                    }
+                });
+
+                attachmentList.appendChild(item);
+            }
+
+
+            const aiSummaryToggle = wrapper.querySelector("[data-ai-summary-toggle]");
+            const aiSummaryBody = wrapper.querySelector("[data-ai-summary-body]");
+            const aiSummaryChevron = wrapper.querySelector("[data-ai-summary-chevron]");
+            const aiSummaryRemoveBtn = wrapper.querySelector("[data-ai-summary-remove]");
+
+            const aiWrapper = wrapper.querySelector("[data-ai-wrapper]");
+            const aiTrigger = wrapper.querySelector("[data-ai-trigger]");
+
+            const summarizeBtn = wrapper.querySelector('[data-ai-action="summarize"]');
+            if (summarizeBtn) {
+                summarizeBtn.addEventListener("click", async (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+
+                    const content = textarea.value.trim();
+                    if (!content) return;
+
+                    aiSummaryBox.classList.remove("hidden");
+
+                    const loadingEl = aiSummaryBox.querySelector("[data-ai-summary-loading]");
+                    const listEl = aiSummaryBox.querySelector("[data-ai-summary-list]");
+
+                    loadingEl.classList.remove("hidden");
+                    listEl.innerHTML = "";
+
+                    const details = summarizeBtn.closest("details");
+                    details?.removeAttribute("open");
+
+                    try {
+                        const res = await fetch(
+                            `http://localhost:8000/api/v1/notebooks/${noteId}/cells/${cell.cell_id}/summarize?user_id=${userId}`,
+                            {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({ content }),
+                            }
+                        );
+
+                        const data = await res.json();
+
+                        renderMarkdownSummary(data.summary, listEl);
+
+                        // markDirty();
+
+                    } catch (err) {
+                        const li = document.createElement("li");
+                        li.textContent = "Failed to generate summary.";
+                        listEl.appendChild(li);
+                    } finally {
+                        loadingEl.classList.add("hidden");
+                    }
+                });
+
+            }
+
+            if (aiSummaryToggle && aiSummaryBody && aiSummaryChevron) {
+                aiSummaryToggle.addEventListener("click", () => {
+                    const isCollapsed = aiSummaryBody.classList.toggle("hidden");
+
+                    // rotate chevron
+                    aiSummaryChevron.classList.toggle("rotate-180", !isCollapsed);
+                });
+            }
+
+            if (aiSummaryRemoveBtn && aiSummaryBox) {
+                aiSummaryRemoveBtn.addEventListener("click", async (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+
+                    await fetch(
+                        `http://localhost:8000/api/v1/notebooks/${noteId}/cells/${cell.cell_id}/summary?user_id=${userId}`,
+                        { method: "DELETE" }
+                    );
+
+                    // markDirty();
+
+
+                    // Hide summary entirely
+                    aiSummaryBox.classList.add("hidden");
+
+                    // Optional: reset collapsed state for next time
+                    aiSummaryBody?.classList.remove("hidden");
+                    aiSummaryChevron?.classList.add("rotate-180");
+                });
+            }
+
+            const askBtn = wrapper.querySelector('[data-ai-action="ask"]');
+
+            if (askBtn) {
+                askBtn.addEventListener("click", () => {
+                    openCellChat(cell.cell_id, textarea.value);
+
+                    const details = askBtn.closest("details");
+                    details?.removeAttribute("open");
+                });
+            }
+
+
+
+            let lastValue = textarea.value;
+
+            textarea.addEventListener("input", () => {
+                pushUndo({
+                    type: "edit",
+                    payload: {
+                        cellId: cell.cell_id,
+                        prev: lastValue,
+                        next: textarea.value,
+                    }
+                });
+
+                // if (summarizeBtn) {
+                //     summarizeBtn.addEventListener("click", (e) => {
+                //         e.preventDefault();
+                //         e.stopPropagation();
+
+                //         alert("Summarize cell:", cell.cell_id);
+
+                //         // Close AI menu
+                //         const details = summarizeBtn.closest("details");
+                //         details?.removeAttribute("open");
+                //     });
+                // }
+
+                lastValue = textarea.value;
+
+                dirtyCells.add(cell.cell_id);
+                markDirty();
+
+                if (aiWrapper && aiTrigger) {
+                    const isNowEmpty = textarea.value.trim().length === 0;
+
+                    if (isNowEmpty) {
+                        aiWrapper.classList.add("pointer-events-none");
+                        aiTrigger.classList.remove(
+                            "text-primary",
+                            "hover:text-blue-600",
+                            "hover:bg-blue-50",
+                            "dark:hover:bg-blue-900/20",
+                            "cursor-pointer"
+                        );
+                        aiTrigger.classList.add("text-slate-300", "cursor-not-allowed");
+                        aiTrigger.title = "Add content to use AI tools";
+                    } else {
+                        aiWrapper.classList.remove("pointer-events-none");
+                        aiTrigger.classList.remove("text-slate-300", "cursor-not-allowed");
+                        aiTrigger.classList.add(
+                            "text-primary",
+                            "hover:text-blue-600",
+                            "hover:bg-blue-50",
+                            "dark:hover:bg-blue-900/20",
+                            "cursor-pointer"
+                        );
+                        aiTrigger.title = "AI Tools";
+                    }
+                }
+            });
+
+
+
+
+
+
+            textarea.addEventListener("focus", () => {
+                activeCell = {
+                    notebookId: noteId,
+                    cellId: cell.cell_id,
+                    textarea: textarea
+                }
+            })
+
+            targetContainer.appendChild(wrapper);
+
+            const card = wrapper.querySelector(".cell-card");
+            const content = wrapper.querySelector(".cell-content");
+            // const textarea = wrapper.querySelector("textarea");
+
+            const savedHeight = getCellHeight(cell.cell_id);
+
+            if (savedHeight) {
+                card.style.height = savedHeight + "px";
+            }
+
+            requestAnimationFrame(updateOverflowState);
+
+            // const DEFAULT_HEIGHT = 120;
+            let isExpanded = false;
+
+            // Detect overflow AFTER render
+            requestAnimationFrame(() => {
+                const isOverflowing = textarea.scrollHeight > DEFAULT_HEIGHT;
+
+                if (isOverflowing) {
+                    card.classList.add("is-overflowing");
+                } else {
+                    card.classList.remove("is-overflowing");
+                }
+            });
+
+
+            // const card = wrapper.querySelector(".cell-card");
+            const handle = wrapper.querySelector(".resize-handle");
+
+            let startY = 0;
+            let startHeight = 0;
+
+            handle.addEventListener("mousedown", (e) => {
+                e.preventDefault();
+                startY = e.clientY;
+                startHeight = card.offsetHeight;
+
+                document.addEventListener("mousemove", onMouseMove);
+                document.addEventListener("mouseup", onMouseUp);
+            });
+
+            function onMouseMove(e) {
+                const newHeight = startHeight + (e.clientY - startY);
+
+                if (newHeight < 120) return;        // min
+                if (newHeight > window.innerHeight * 3) return; // max
+
+                card.style.height = newHeight + "px";
+            }
+
+            function onMouseUp() {
+                const height = card.offsetHeight;
+
+                if (height > DEFAULT_HEIGHT) {
+                    setCellHeight(cell.cell_id, height);
+                } else {
+                    clearCellHeight(cell.cell_id);
+                }
+
+                requestAnimationFrame(updateOverflowState);
+
+                document.removeEventListener("mousemove", onMouseMove);
+                document.removeEventListener("mouseup", onMouseUp);
+            }
+
+
+            function updateOverflowState() {
+                const overflowsDefault =
+                    textarea.scrollHeight > DEFAULT_HEIGHT;
+
+                card.classList.toggle("is-overflowing", overflowsDefault);
+            }
+
+
+
+            handle.addEventListener("dblclick", () => {
+                // const savedHeight = getCellHeight(cell.cell_id);
+                const isCollapsed = !card.style.height || card.style.height === `${DEFAULT_HEIGHT}px`;
+
+                if (!isCollapsed) {
+                    // COLLAPSE
+                    card.style.height = DEFAULT_HEIGHT + "px";
+                    clearCellHeight(cell.cell_id);
+
+                    requestAnimationFrame(updateOverflowState);
+                    return;
+                }
+                const contentEl = wrapper.querySelector(".cell-content");
+
+                // scrollHeight already includes textarea + AI summary
+                const contentHeight = contentEl.scrollHeight;
+
+                const padding = 48; // p-6 top + bottom
+                const handleHeight = handle.offsetHeight + 6;
+
+                let targetHeight = contentHeight + padding + handleHeight;
+
+                if (targetHeight > MAX_HEIGHT) {
+                    targetHeight = MAX_HEIGHT;
+                }
+
+                card.style.height = targetHeight + "px";
+                setCellHeight(cell.cell_id, targetHeight);
+
+                requestAnimationFrame(updateOverflowState);
+            });
+        }
+
+        document.getElementById("aiSendBtn")
+            ?.addEventListener("click", sendChatMessage);
+
+        document.getElementById("aiPromptInput")
+            ?.addEventListener("keydown", (e) => {
+                if (e.key === "Enter") {
+                    e.preventDefault();
+                    sendChatMessage();
+                }
+            });
+
+        document.getElementById("closeAiSidebar")
+            ?.addEventListener("click", () => {
+                document.getElementById("aiSidebar")
+                    .classList.add("hidden");
+            });
+
+
+
+        function openCellChat(cellId, cellContent) {
+
+            if (!cellContent || cellContent.trim().length === 0) {
+                alert("Add content before chatting.");
+                return;
+            }
+
+            const sidebar = document.getElementById("aiSidebar");
+            sidebar.classList.remove("hidden");
+
+            currentChatCellId = cellId;
+
+            if (!cellChats[cellId]) {
+                cellChats[cellId] = [];
+
+                cellChats[cellId].push({
+                    role: "assistant",
+                    content: `
+Hi 👋 I'm BitBuddy.
+
+Ask me anything about this cell.
+
+I can:
+• Explain concepts clearly  
+• Break down formulas  
+• Give examples  
+• Challenge you with recall questions  
+
+Let's learn.
+        `
+                });
+            }
+
+
+            renderChatMessages();
+        }
+
+        function renderChatMessages() {
+
+            const container = document.getElementById("aiChatContainer");
+            container.innerHTML = "";
+
+            const messages = cellChats[currentChatCellId] || [];
+
+            messages.forEach(msg => {
+
+                const wrapper = document.createElement("div");
+
+                if (msg.role === "assistant") {
+
+                    const messageBox = document.createElement("div");
+                    messageBox.className = `
+            bg-white dark:bg-slate-800
+            p-3 rounded-2xl rounded-tl-none
+            shadow-sm text-sm max-w-[85%]
+            space-y-1
+        `;
+
+                    renderMarkdownToContainer(msg.content, messageBox);
+
+                    wrapper.innerHTML = `
+            <div class="flex gap-3">
+                <div class="w-8 h-8 rounded-full bg-primary/10 
+                    flex items-center justify-center text-primary">
+                    <span class="material-symbols-outlined text-[16px]">
+                        smart_toy
+                    </span>
+                </div>
+            </div>
+        `;
+
+                    wrapper.firstElementChild.appendChild(messageBox);
+
+                } else {
+
+                    const userBox = document.createElement("div");
+                    userBox.className = `
+            bg-primary p-3 rounded-2xl rounded-tr-none
+            text-white text-sm max-w-[85%]
+        `;
+
+                    userBox.textContent = msg.content;
+
+                    wrapper.innerHTML = `
+            <div class="flex gap-3 flex-row-reverse"></div>
+        `;
+
+                    wrapper.firstElementChild.appendChild(userBox);
+                }
+
+                container.appendChild(wrapper);
+            });
+
+            if (isThinking) {
+
+                const thinkingWrapper = document.createElement("div");
+
+                thinkingWrapper.innerHTML = `
+    <div class="flex gap-3">
+        <div class="w-8 h-8 rounded-full bg-primary/10 
+            flex items-center justify-center text-primary">
+            <span class="material-symbols-outlined text-[16px]">
+                smart_toy
+            </span>
+        </div>
+
+        <div class="bg-white dark:bg-slate-800 
+            p-3 rounded-2xl rounded-tl-none 
+            shadow-sm text-sm max-w-[85%]">
+
+            <div class="flex items-center gap-1">
+                <span class="animate-bounce">•</span>
+                <span class="animate-bounce [animation-delay:0.1s]">•</span>
+                <span class="animate-bounce [animation-delay:0.2s]">•</span>
+                <span class="ml-2 text-slate-400 text-xs">
+                    BitBuddy is thinking…
+                </span>
+            </div>
+
+        </div>
+    </div>
+`;
+
+                container.appendChild(thinkingWrapper);
+            }
+
+
+            container.scrollTop = container.scrollHeight;
+        }
+
+
+        async function sendChatMessage() {
+
+            const input = document.getElementById("aiPromptInput");
+            const text = input.value.trim();
+
+            if (!text || !currentChatCellId) return;
+
+            const textarea = document.querySelector(
+                `[data-cell-id="${currentChatCellId}"] textarea`
+            );
+
+            const cellContent = textarea?.value || "";
+
+            // Push user message
+            cellChats[currentChatCellId].push({
+                role: "user",
+                content: text
+            });
+
+            isThinking = true;
+            // renderChatMessages();
+
+            input.value = "";
+            renderChatMessages();
+
+            try {
+                const res = await fetch(
+                    `http://localhost:8000/api/v1/educational-ai/cell-chat`,
+                    {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            notebook_id: noteId,
+                            cell_id: currentChatCellId,
+                            cell_content: cellContent,
+                            conversation: cellChats[currentChatCellId],
+                            user_message: text
+                        })
+                    }
+                );
+
+                const data = await res.json();
+
+                isThinking = false;
+
+
+                cellChats[currentChatCellId].push({
+                    role: "assistant",
+                    content: data.reply
+                });
+
+                renderChatMessages();
+
+            } catch (err) {
+
+                isThinking = false;
+
+                cellChats[currentChatCellId].push({
+                    role: "assistant",
+                    content: "Something went wrong."
+                });
+
+                renderChatMessages();
+            }
+        }
+
+
+
+
+        function undoEdit({ cellId, prev }) {
+            const textarea = document.querySelector(
+                `[data-cell-id="${cellId}"] textarea`
+            );
+            if (!textarea) return;
+
+            textarea.value = prev;
+            dirtyCells.add(cellId);
+        }
+
+        function undoDelete({ node, parent, index }) {
+            const ref = parent.children[index] || null;
+            parent.insertBefore(node, ref);
+
+            deletedCells.delete(node.dataset.cellId);
+            dirtyOrder = true;
+        }
+
+        function redoEdit({ cellId, next }) {
+            const textarea = document.querySelector(
+                `[data-cell-id="${cellId}"] textarea`
+            );
+            if (!textarea) return;
+
+            textarea.value = next;
+            dirtyCells.add(cellId);
+        }
+
+        function redoDelete({ node }) {
+            node.remove();
+            deletedCells.add(node.dataset.cellId);
+            dirtyOrder = true;
+        }
+
+        function snapshotOrder() {
+            const snapshot = [];
+
+            document.querySelectorAll(".week-section").forEach(section => {
+                const week = Number(section.id.replace("week-section-", ""));
+                const cells = [...section.querySelectorAll(".cell-container")];
+
+                snapshot.push({
+                    week,
+                    cellIds: cells.map(c => c.dataset.cellId)
+                });
+            });
+
+            return snapshot;
+        }
+
+        function restoreOrder(snapshot) {
+            snapshot.forEach(({ week, cellIds }) => {
+                const body = document.querySelector(
+                    `#week-section-${week} .week-cells`
+                );
+                if (!body) return;
+
+                cellIds.forEach(id => {
+                    const cell = document.querySelector(
+                        `.cell-container[data-cell-id="${id}"]`
+                    );
+                    if (cell) body.appendChild(cell);
+                });
+            });
+
+            dirtyOrder = true;
+            refreshMoveButtons();
+        }
+
+        function refreshMoveButtons() {
+            document.querySelectorAll(".week-cells").forEach(body => {
+                const cells = [...body.children];
+
+                cells.forEach((cell, i) => {
+                    const up = cell.querySelector(".move-up-btn");
+                    const down = cell.querySelector(".move-down-btn");
+
+                    if (up) {
+                        up.disabled = i === 0;
+                        up.classList.toggle("opacity-40", i === 0);
+                        up.classList.toggle("cursor-not-allowed", i === 0);
+                    }
+
+                    if (down) {
+                        down.disabled = i === cells.length - 1;
+                        down.classList.toggle("opacity-40", i === cells.length - 1);
+                        down.classList.toggle("cursor-not-allowed", i === cells.length - 1);
+                    }
+                });
+            });
+        }
+
+
+        addCellBtn.addEventListener("click", async () => {
+
+            if (activeCell) {
+                await saveCellContent(
+                    activeCell.notebookId,
+                    activeCell.cellId,
+                    activeCell.textarea.value
+                );
+                activeCell = null;
+            }
+
+            const res = await fetch(
+                `http://localhost:8000/api/v1/notebooks/${noteId}/cells?user_id=${userId}`,
+                { method: "POST" }
+            );
+
+            const newCell = await res.json();
+
+            // append to CURRENT week body
+            const currentWeek = getCurrentWeekFromTasks(tasks);
+            const body = document.querySelector(`#week-section-${currentWeek} .week-cells`);
+
+            renderCell(newCell, body.children.length, body.children.length + 1, body);
+
+            dirtyOrder = true;
+            markDirty();
+
+        })
+
+        // textarea.addEventListener("blur", () => {
+        //     saveCellContent(cell.cell_id, textarea.value);
+        // })
+
+        async function saveCellContent(notebookId, cellId, content) {
+            await fetch(`http://localhost:8000/api/v1/notebooks/${notebookId}/cells/${cellId}`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(content)
+            });
+        }
+
+        let saveTimeout = null;
+
+        function debounceSave(notebookId, cellId, content) {
+            clearTimeout(saveTimeout);
+            saveTimeout = setTimeout(() => {
+                saveCellContent(notebookId, cellId, content);
+            }, 400);
+        }
+
+        function showAiLoading() {
+            document.getElementById("ai-loading-overlay")?.classList.remove("hidden");
+            document.body.style.overflow = "hidden";
+        }
+
+        function hideAiLoading() {
+            document.getElementById("ai-loading-overlay")?.classList.add("hidden");
+            document.body.style.overflow = "";
+        }
+        let i = 3;
+
+        async function waitForAI() {
+            showAiLoading();
+            while (i >= 0) {
+                const res = await fetch(
+                    `http://localhost:8000/api/v1/notebooks/${noteId}/tasks?user_id=${userId}`
+                );
+
+                const tasksData = await res.json();
+
+                if (Array.isArray(tasksData) && tasksData.length > 0) {
+                    tasks = tasksData;          // sync global state
+                    hideAiLoading();
+                    await loadCells();
+                    updateProgress(tasks);
+                    return;
+                }
+
+                await new Promise(r => setTimeout(r, 1500));
+                i--;
+            }
+        }
+
+
+        window.addEventListener("DOMContentLoaded", async () => {
+            await loadTitle();
+            await loadNotebook();
+
+            if (window.__NOTE_TYPE__ === "educational") {
+                await waitForAI();   // THIS is where it is CALLED
+            } else {
+                await loadCells();
+            }
+            await loadTasks();
+        });
+
+        async function deleteCell(cellId) {
+            const wrapper = document.querySelector(`[data-cell-id="${cellId}"]`);
+            if (!wrapper) return;
+
+            const parent = wrapper.parentElement;
+            const index = [...parent.children].indexOf(wrapper);
+
+            pushUndo({
+                type: "delete",
+                payload: {
+                    node: wrapper,
+                    parent,
+                    index,
+                }
+            });
+
+            wrapper.remove();
+
+            deletedCells.add(cellId);
+            dirtyCells.delete(cellId);
+            dirtyOrder = true;
+            markDirty();
+
+            refreshMoveButtons();
+        }
+
+
+
+        function moveCell(cellId, direction) {
+            const before = snapshotOrder();
+
+            const wrapper = document.querySelector(
+                `.cell-container[data-cell-id="${cellId}"]`
+            );
+            if (!wrapper) return;
+
+            const parent = wrapper.parentElement;
+            const siblings = [...parent.children];
+            const index = siblings.indexOf(wrapper);
+
+            const targetIndex =
+                direction === "up" ? index - 1 : index + 1;
+
+            if (targetIndex < 0 || targetIndex >= siblings.length) return;
+
+            parent.insertBefore(
+                wrapper,
+                siblings[targetIndex + (direction === "down" ? 1 : 0)] || null
+            );
+
+            pushUndo({
+                type: "order",
+                before,
+                after: snapshotOrder()
+            });
+
+            dirtyOrder = true;
+            markDirty();
+
+            refreshMoveButtons();
+        }
+
+
+
+        function moveCellToWeek(cellId, week) {
+            const before = snapshotOrder();
+
+            const wrapper = document.querySelector(
+                `.cell-container[data-cell-id="${cellId}"]`
+            );
+            const target = document.querySelector(
+                `#week-section-${week} .week-cells`
+            );
+
+            if (!wrapper || !target) return;
+
+            target.appendChild(wrapper);
+
+            pushUndo({
+                type: "order",
+                before,
+                after: snapshotOrder()
+            });
+
+            dirtyOrder = true;
+            markDirty();
+
+            refreshMoveButtons();
+
+            requestAnimationFrame(() => {
+                scrollToWeek(week);
+            });
+        }
+
+
+        async function persistCellOrder() {
+            const payload = [];
+
+            document.querySelectorAll(".week-section").forEach(section => {
+                const week = Number(section.id.replace("week-section-", ""));
+                const cells = section.querySelectorAll(".cell-container");
+
+                cells.forEach((cell, index) => {
+                    payload.push({
+                        cell_id: cell.dataset.cellId,
+                        week,
+                        order_index: index,
+                    });
+                });
+            });
+
+            await fetch(
+                `http://localhost:8000/api/v1/notebooks/${noteId}/cells/reorder?user_id=${userId}`,
+                {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(payload),
+                }
+            );
+        }
+
+
+        async function persistTasks() {
+            for (const [taskId, status] of dirtyTaskMap.entries()) {
+                await fetch(
+                    `http://localhost:8000/api/v1/notebooks/tasks/${taskId}?user_id=${userId}`,
+                    {
+                        method: "PUT",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ status }),
+                    }
+                );
+            }
+
+            dirtyTaskMap.clear();
+        }
+
+
+
+        document.getElementById("saveBtn").addEventListener("click", async () => {
+
+            // Save cell contents
+            for (const cellId of dirtyCells) {
+                const textarea = document.querySelector(
+                    `[data-cell-id="${cellId}"] textarea`
+                );
+                if (!textarea) continue;
+
+                await saveCellContent(noteId, cellId, textarea.value);
+            }
+
+            // Save ordering & weeks
+            if (dirtyOrder) {
+                await persistCellOrder();
+            }
+
+            // Save tasks
+            if (dirtyTasks) {
+                await persistTasks();
+            }
+
+            for (const cellId of deletedCells) {
+                await fetch(
+                    `http://localhost:8000/api/v1/notebooks/${noteId}/cells/${cellId}?user_id=${userId}`,
+                    { method: "DELETE" }
+                );
+            }
+            deletedCells.clear();
+
+
+            clearDirty();
+        });
+
+
+
+    </script>
+
+    <!-- <script>
+        if (localStorage.getItem("isLoggedIn") !== "true") {
+            sessionStorage.setItem("redirectAfterAuth", window.location.pathname);
+            window.location.href = "auth.html";
+        }
+    </script> -->
+
+    <script src="scripts/app.js"></script>
+
+    <template id="weekTemplate">
+        <div class="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/30 shadow-sm">
+            <button class="w-full flex items-center justify-between p-4 text-left rounded-xl">
+                <div class="flex items-center gap-2.5">
+                    <span class="material-symbols-outlined text-slate-400 text-[20px]">expand_more</span>
+                    <span class="week-title text-sm font-semibold"></span>
+                </div>
+                <div class="week-progress px-2.5 py-1 rounded-full text-xs font-bold"></div>
+            </button>
+            <div class="week-body px-4 pb-4 space-y-3 hidden">
+                <!-- days & tasks injected here -->
+            </div>
+        </div>
+    </template>
+
+    <template id="taskTemplate">
+        <label class="flex items-start gap-2 text-sm cursor-pointer">
+            <input type="checkbox" class="task-checkbox w-4 h-4 rounded" />
+            <span class="task-text"></span>
+        </label>
+    </template>
+
+    <script>
+        const learningPanel = document.getElementById("learningPanel");
+        const toggleBtn = document.getElementById("learningPanelToggle");
+        const arrow = document.getElementById("learningPanelArrow");
+
+        let isLearningPanelOpen = true;
+
+
+        toggleBtn.addEventListener("click", () => {
+            isLearningPanelOpen = !isLearningPanelOpen;
+
+            if (!isLearningPanelOpen) {
+                learningPanel.classList.remove("w-72");
+                learningPanel.classList.add("w-0", "opacity-0", "pointer-events-none");
+
+                toggleBtn.classList.remove("left-[18rem]");
+                toggleBtn.classList.add("left-2");
+
+                arrow.classList.add("rotate-180");
+            } else {
+                learningPanel.classList.remove("w-0", "opacity-0", "pointer-events-none");
+                learningPanel.classList.add("w-72");
+
+                toggleBtn.classList.remove("left-2");
+                toggleBtn.classList.add("left-[18rem]");
+
+                arrow.classList.remove("rotate-180");
+            }
+        });
+
+
+    </script>
+
+    <!-- AI Generation Overlay -->
+    <div id="ai-loading-overlay" class="fixed inset-0 z-[9999] hidden
+         flex items-center justify-center
+         bg-white/80 dark:bg-background-dark/80
+         backdrop-blur-sm">
+
+        <div class="flex flex-col items-center gap-6 text-center max-w-sm px-6">
+
+            <!-- Animated AI icon -->
+            <div class="relative">
+                <div class="absolute inset-0 rounded-full bg-primary/20 animate-ping"></div>
+                <div class="relative size-16 rounded-full bg-primary text-white
+               flex items-center justify-center shadow-lg">
+                    <span class="material-symbols-outlined text-3xl">auto_awesome</span>
+                </div>
+            </div>
+
+            <!-- Main text -->
+            <div class="flex flex-col gap-2">
+                <h2 class="text-xl font-bold text-[#111318] dark:text-white">
+                    Creating your learning plan
+                </h2>
+                <p class="text-sm text-[#616f89] dark:text-gray-400">
+                    We’re generating a personalized roadmap based on your level and time commitment.
+                </p>
+            </div>
+
+            <!-- Subtle step indicator -->
+            <div class="text-xs text-[#616f89] dark:text-gray-400">
+                Analyzing topic → Building syllabus → Structuring roadmap
+            </div>
+        </div>
+    </div>
+
+    <!-- Recall Modal -->
+    <div id="recallModal"
+        class="fixed inset-0 z-[9998] hidden flex items-center justify-center bg-black/40 backdrop-blur-sm">
+        <div
+            class="w-[640px] max-h-[85vh] overflow-y-auto bg-white dark:bg-slate-900 rounded-2xl shadow-2xl p-6 space-y-6">
+
+            <!-- Header -->
+            <div class="flex items-center justify-between">
+                <h2 class="text-xl font-bold text-slate-900 dark:text-white">
+                    Recall Session
+                </h2>
+                <button id="closeRecallModal" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300">
+                    ✕
+                </button>
+            </div>
+
+            <!-- Dynamic Content -->
+            <div id="recallContent"></div>
+
+        </div>
+    </div>
+
+    <script>
+        const recallBtn = document.getElementById("recallBtn");
+        const recallModal = document.getElementById("recallModal");
+        const recallContent = document.getElementById("recallContent");
+        const closeRecallModal = document.getElementById("closeRecallModal");
+
+        recallBtn?.addEventListener("click", openRecall);
+        closeRecallModal?.addEventListener("click", () => {
+            recallModal.classList.add("hidden");
+            recallContent.innerHTML = "";
+        });
+
+
+        async function openRecall() {
+
+            if (!userId) {
+                console.error("User ID missing");
+                return;
+            }
+
+
+            recallModal.classList.remove("hidden");
+            recallContent.innerHTML = "Loading...";
+
+            const res = await fetch(
+                `http://localhost:8000/api/v1/recall/sessions/${noteId}`,
+                { headers: { "x-user-id": userId } }
+            );
+
+            if (!res.ok) {
+                console.error(await res.text());
+                recallContent.innerHTML = "<div class='text-red-500'>Request failed</div>";
+                return;
+            }
+
+            const sessions = await res.json();
+
+            if (!sessions.length) {
+                renderNewSessionForm();
+                return;
+            }
+
+            // const latest = sessions[0];
+            renderSessionList(sessions);
+        }
+
+        function renderSessionList(sessions) {
+
+            recallContent.innerHTML = `
+    <div class="space-y-4">
+        <div class="flex items-center justify-between">
+            <div class="text-sm font-medium">Previous Sessions</div>
+            <button 
+                type="button"
+                id="startNewRecall"
+                class="px-3 py-1.5 bg-primary text-white rounded-lg text-xs font-bold">
+                New Session
+            </button>
+        </div>
+
+        <div id="sessionList" class="space-y-2"></div>
+    </div>
+`;
+
+            const listContainer = document.getElementById("sessionList");
+
+            sessions.forEach(session => {
+
+                const div = document.createElement("div");
+                div.className = `
+        p-3 rounded-lg border cursor-pointer
+        hover:bg-slate-50 dark:hover:bg-slate-800
+        transition
+    `;
+
+                div.innerHTML = `
+<div class="flex items-center justify-between">
+    <div>
+        <div class="text-sm font-medium">
+            ${session.difficulty.toUpperCase()} • ${session.question_count} Questions
+        </div>
+        <div class="text-xs text-slate-500 mt-1">
+            Score: ${Number(session.average_score || 0).toFixed(1)}%
+        </div>
+    </div>
+
+    <button 
+        class="delete-session text-red-500 hover:text-red-700 text-xs font-bold"
+        data-session="${session.session_id}">
+        Delete
+    </button>
+</div>
+`;
+
+                div.addEventListener("click", () => {
+                    loadSessionQuestions(session.session_id, session.average_score !== null);
+                });
+
+
+                listContainer.appendChild(div);
+
+                div.querySelector(".delete-session").addEventListener("click", async (e) => {
+                    e.stopPropagation();
+
+                    if (!confirm("Delete this recall session?")) return;
+
+                    await fetch(
+                        `http://localhost:8000/api/v1/recall/session/${session.session_id}`,
+                        {
+                            method: "DELETE",
+                            headers: { "x-user-id": userId }
+                        }
+                    );
+
+                    openRecall(); // reload session list
+                });
+            });
+
+            document.getElementById("startNewRecall")
+                .addEventListener("click", renderNewSessionForm);
+        }
+
+
+        async function renderPreviousSession(session) {
+
+            recallContent.innerHTML = `
+    <div class="space-y-4">
+        <div class="p-4 rounded-lg bg-slate-50 dark:bg-slate-800">
+            <div class="text-sm font-medium">Previous Session</div>
+            <div class="text-xs text-slate-500 mt-1">
+                Difficulty: ${session.difficulty} <br>
+                Score: ${Number(session.average_score || 0).toFixed(1)}%
+            </div>
+        </div>
+
+        <div class="flex gap-3">
+            <button 
+                type="button"
+                id="startNewRecall"
+                class="px-4 py-2 bg-primary text-white rounded-lg text-sm font-bold">
+                Start New Recall Session
+            </button>
+
+            <button 
+                type="button"
+                id="deleteSession"
+                class="px-4 py-2 bg-red-100 text-red-600 rounded-lg text-sm font-bold">
+                Delete Old Questions
+            </button>
+        </div>
+    </div>
+`;
+
+            document.getElementById("startNewRecall")
+                .addEventListener("click", renderNewSessionForm);
+
+            document.getElementById("deleteSession")
+                .addEventListener("click", async () => {
+                    await fetch(
+                        `http://localhost:8000/api/v1/recall/session/${session.session_id}`,
+                        {
+                            method: "DELETE",
+                            headers: { "x-user-id": userId }
+                        }
+                    );
+                    renderNewSessionForm();
+                });
+        }
+
+        function renderNewSessionForm() {
+
+            recallContent.innerHTML = `
+    <div class="space-y-4">
+        <div>
+            <label class="text-sm font-medium">Difficulty</label>
+            <select id="recallDifficulty" class="w-full mt-1 border rounded-lg p-2">
+                <option value="easy">Easy</option>
+                <option value="normal">Normal</option>
+                <option value="challenging">Challenging</option>
+            </select>
+        </div>
+
+        <div>
+            <label class="text-sm font-medium">Number of Questions</label>
+            <input id="recallCount" type="number" min="5" max="15" value="5"
+                class="w-full mt-1 border rounded-lg p-2" />
+        </div>
+
+        <button type="button"
+            id="generateRecall"
+            class="w-full py-2 bg-primary text-white rounded-lg font-bold">
+            Generate Questions
+        </button>
+    </div>
+`;
+
+            document.getElementById("generateRecall")
+                .addEventListener("click", generateRecallSession);
+        }
+
+        async function generateRecallSession() {
+
+            if (!userId) {
+                console.error("User ID missing");
+                return;
+            }
+
+
+            const difficulty = document.getElementById("recallDifficulty").value;
+            const question_count = parseInt(document.getElementById("recallCount").value);
+
+
+            recallContent.innerHTML = "Generating questions...";
+
+            const res = await fetch(
+                `http://localhost:8000/api/v1/recall/generate/${noteId}`,
+                {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "x-user-id": userId
+                    },
+                    body: JSON.stringify({ difficulty, question_count })
+                }
+            );
+
+            if (!res.ok) {
+                const err = await res.json();
+                recallContent.innerHTML = `<div class="text-red-500">${err.detail}</div>`;
+                return;
+            }
+
+            await loadCurrentSessionQuestions();
+        }
+
+        async function loadSessionQuestions(session_id, isCompleted = false) {
+
+            recallContent.innerHTML = "Loading questions...";
+
+            const res = await fetch(
+                `http://localhost:8000/api/v1/recall/questions/session/${session_id}`,
+                { headers: { "x-user-id": userId } }
+            );
+
+            if (!res.ok) {
+                recallContent.innerHTML = "<div class='text-red-500'>Failed to load questions</div>";
+                return;
+            }
+
+            const questions = await res.json();
+
+            recallContent.innerHTML = "";
+
+            questions.forEach((q, index) => {
+
+                const div = document.createElement("div");
+                div.className = "p-4 border rounded-lg space-y-3";
+
+                let optionsHtml = "";
+                const alreadyAnswered = q.score !== null && q.score !== undefined;
+
+                // ===== MCQ =====
+                if (q.question_type === "mcq" && q.options) {
+                    const options = JSON.parse(q.options);
+
+                    optionsHtml = options.map(opt => `
+        <label class="flex items-center gap-2 text-sm cursor-pointer">
+            <input 
+                type="radio"
+                name="q${q.id}"
+                value="${opt}"
+                ${q.user_answer === opt ? "checked" : ""}
+                ${alreadyAnswered ? "disabled" : ""}
+            />
+            <span>${opt}</span>
+        </label>
+    `).join("");
+                }
+
+                // ===== TRUE/FALSE =====
+                else if (q.question_type === "true_false") {
+                    optionsHtml = `
+        <label class="flex items-center gap-2 text-sm cursor-pointer">
+            <input type="radio" name="q${q.id}" value="True"
+                ${q.user_answer === "True" ? "checked" : ""}
+                ${alreadyAnswered ? "disabled" : ""}>
+            <span>True</span>
+        </label>
+        <label class="flex items-center gap-2 text-sm cursor-pointer">
+            <input type="radio" name="q${q.id}" value="False"
+                ${q.user_answer === "False" ? "checked" : ""}
+                ${alreadyAnswered ? "disabled" : ""}>
+            <span>False</span>
+        </label>
+    `;
+                }
+
+                // ===== SHORT =====
+                else if (q.question_type === "short") {
+                    optionsHtml = `
+        <input 
+            type="text"
+            id="q${q.id}"
+            value="${q.user_answer || ""}"
+            ${alreadyAnswered ? "disabled" : ""}
+            class="w-full border rounded-lg px-3 py-2 text-sm"
+        />
+    `;
+                }
+
+                div.innerHTML = `
+    <div class="font-medium">
+        ${index + 1}. ${q.question}
+    </div>
+    <div class="space-y-2">
+        ${optionsHtml}
+    </div>
+    <div id="feedback-${q.id}" class="text-sm mt-2"></div>
+`;
+
+                recallContent.appendChild(div);
+
+                // If already answered → render feedback immediately
+                if (alreadyAnswered) {
+
+                    const feedbackEl = document.getElementById(`feedback-${q.id}`);
+
+                    // const isCorrect = q.score > 0.7;
+
+                    let status;
+                    let colorClass;
+
+                    if (q.score >= 0.85) {
+                        status = "Correct ✅";
+                        colorClass = "green";
+                    }
+                    else if (q.score >= 0.4) {
+                        status = "Partially Correct ⚠️";
+                        colorClass = "yellow";
+                    }
+                    else {
+                        status = "Incorrect ❌";
+                        colorClass = "red";
+                    }
+
+                    feedbackEl.innerHTML = `
+<div class="mt-4 p-4 rounded-xl border
+    ${colorClass === "green"
+                        ? "bg-green-50 border-green-200 dark:bg-green-900/20 dark:border-green-800"
+                        : colorClass === "yellow"
+                            ? "bg-yellow-50 border-yellow-200 dark:bg-yellow-900/20 dark:border-yellow-800"
+                            : "bg-red-50 border-red-200 dark:bg-red-900/20 dark:border-red-800"
+                    }
+    space-y-2 text-sm transition-all">
+
+    <div class="font-bold text-base
+        ${colorClass === "green"
+                        ? "text-green-700 dark:text-green-400"
+                        : colorClass === "yellow"
+                            ? "text-yellow-700 dark:text-yellow-400"
+                            : "text-red-700 dark:text-red-400"
+                    }">
+        ${status}
+    </div>
+
+    <div class="text-slate-700 dark:text-slate-300">
+        <strong>Your Answer:</strong> ${q.user_answer || "Not answered"}
+    </div>
+
+    <div class="text-slate-700 dark:text-slate-300">
+        <strong>Correct Answer:</strong> ${q.correct_answer}
+    </div>
+
+    <div class="italic text-slate-600 dark:text-slate-400">
+        ${q.feedback}
+    </div>
+</div>
+`;
+                }
+
+            });
+
+            const hasAttempts = questions.some(q => q.score !== null && q.score !== undefined);
+
+            if (!hasAttempts) {
+
+                const submitBtn = document.createElement("button");
+                submitBtn.type = "button";
+                submitBtn.className = `
+                        mt-6 w-full py-3 
+                        bg-primary text-white 
+                        rounded-lg font-bold
+                        hover:bg-blue-600 transition
+                    `;
+                submitBtn.textContent = "Submit All Answers";
+                submitBtn.onclick = () => submitSession(session_id);
+
+                recallContent.appendChild(submitBtn);
+            }
+
+
+
+        }
+
+
+
+
+        async function submitAnswer(questionId, type) {
+
+            let answer;
+
+            if (type === "short") {
+                answer = document.getElementById(`q${questionId}`).value;
+            } else {
+                const selected = document.querySelector(`input[name="q${questionId}"]:checked`);
+                if (!selected) return;
+                answer = selected.value;
+            }
+
+            const res = await fetch(
+                `http://localhost:8000/api/v1/recall/evaluate`,
+                {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "x-user-id": userId
+                    },
+                    body: JSON.stringify({
+                        question_id: questionId,
+                        user_answer: answer
+                    })
+                }
+            );
+
+            if (!res.ok) {
+                console.error("Evaluation failed:", await res.text());
+                return;
+            }
+
+            const result = await res.json();
+
+            document.getElementById(`feedback-${questionId}`).innerHTML =
+                `<span class="${result.score > 0.7 ? 'text-green-600' : 'text-red-600'}">
+        ${result.feedback}
+    </span>`;
+        }
+
+        async function submitSession(session_id) {
+
+            const answers = {};
+
+            document.querySelectorAll("[name^='q']").forEach(input => {
+                if (input.type === "radio" && input.checked) {
+                    answers[input.name.replace("q", "")] = input.value;
+                }
+            });
+
+            document.querySelectorAll("input[type='text']").forEach(input => {
+                if (input.id.startsWith("q")) {
+                    answers[input.id.replace("q", "")] = input.value;
+                }
+            });
+
+            const totalQuestions = document.querySelectorAll("[id^='feedback-']").length;
+
+            if (Object.keys(answers).length !== totalQuestions) {
+                alert("Please answer all questions before submitting.");
+                return;
+            }
+
+
+            const res = await fetch(
+                `http://localhost:8000/api/v1/recall/session/evaluate/${session_id}`,
+                {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "x-user-id": userId
+                    },
+                    body: JSON.stringify(answers)
+                }
+            );
+
+            if (!res.ok) {
+                const err = await res.text();
+                console.error("Evaluation failed:", err);
+                alert("Evaluation failed. Check console.");
+                return;
+            }
+
+            const data = await res.json();
+
+            // Show feedback
+            data.results.forEach(r => {
+
+                const feedbackEl = document.getElementById(`feedback-${r.question_id}`);
+
+                if (!feedbackEl) return;
+
+                // const isCorrect = r.score > 0.7;
+
+                let status;
+                let colorClass;
+
+                if (r.score >= 0.85) {
+                    status = "Correct ✅";
+                    colorClass = "green";
+                }
+                else if (r.score >= 0.4) {
+                    status = "Partially Correct ⚠️";
+                    colorClass = "yellow";
+                }
+                else {
+                    status = "Incorrect ❌";
+                    colorClass = "red";
+                }
+
+                feedbackEl.innerHTML = `
+<div class="mt-4 p-4 rounded-xl border
+    ${colorClass === "green"
+                        ? "bg-green-50 border-green-200 dark:bg-green-900/20 dark:border-green-800"
+                        : colorClass === "yellow"
+                            ? "bg-yellow-50 border-yellow-200 dark:bg-yellow-900/20 dark:border-yellow-800"
+                            : "bg-red-50 border-red-200 dark:bg-red-900/20 dark:border-red-800"
+                    }
+    space-y-2 text-sm transition-all">
+
+    <div class="font-bold text-base
+        ${colorClass === "green"
+                        ? "text-green-700 dark:text-green-400"
+                        : colorClass === "yellow"
+                            ? "text-yellow-700 dark:text-yellow-400"
+                            : "text-red-700 dark:text-red-400"
+                    }">
+        ${status}
+    </div>
+
+    <div class="text-slate-700 dark:text-slate-300">
+        <strong>Your Answer:</strong> ${r.user_answer || "Not answered"}
+    </div>
+
+    <div class="text-slate-700 dark:text-slate-300">
+        <strong>Correct Answer:</strong> ${r.correct_answer}
+    </div>
+
+    <div class="italic text-slate-600 dark:text-slate-400">
+        ${r.feedback}
+    </div>
+</div>
+`;
+            });
+
+
+            // Show session score at top
+            const scoreDiv = document.createElement("div");
+            scoreDiv.className = "p-4 rounded-lg bg-slate-100 dark:bg-slate-800 font-bold text-center";
+            scoreDiv.innerHTML = `Session Score: ${data.average_score}%`;
+
+            recallContent.prepend(scoreDiv);
+
+            // Disable all inputs (lock session)
+            document.querySelectorAll("#recallContent input").forEach(input => {
+                input.disabled = true;
+            });
+
+            // Disable submit button
+            document.querySelectorAll("#recallContent button").forEach(btn => {
+                if (btn.textContent.includes("Submit")) {
+                    btn.disabled = true;
+                    btn.classList.add("opacity-50", "cursor-not-allowed");
+                }
+            });
+        }
+
+
+
+
+    </script>
+
+
+</body>
+
+</html>
