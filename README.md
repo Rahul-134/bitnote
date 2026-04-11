@@ -1,4 +1,4 @@
-# <img src='bitnote-frontend\src\bitnote_favicon.png' width='24' height='23' alt="Bitnote Logo"> BitNote — AI-Powered Educational Notes
+# <img src='bitnote-frontend\src\bitnote_favicon.png' width='28' height='26' alt="Bitnote Logo"> BitNote — AI-Powered Educational Notes
 
 **BitNote** is an AI-powered note-taking application built for **structured learning**. It combines Notion-style flexibility with AI-guided education — generating syllabuses, learning roadmaps, recall quizzes, and smart summaries — all powered by **local LLMs** via [Ollama](https://ollama.com).
 
