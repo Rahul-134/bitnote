@@ -58,22 +58,22 @@
 
 ---
 
-### 🤖 In-Cell AI Tools — AI Summary & BitBuddy Chat
-
-> Every cell in your notebook comes with built-in AI superpowers. Tap **Generate Summary** to get an instant AI-written breakdown of your notes, or open **BitBuddy** — an AI assistant that can explain concepts, break down formulas, give examples, and challenge you with recall questions — all in context of that specific cell.
-
-<p align="center">
-  <img src="docs/screenshots/Group_8.svg" alt="BitNote in-cell AI tools showing AI Summary and BitBuddy chat" width="780"/>
-</p>
-
----
-
 ### 📓 Notebook Layout — Learning Roadmap & Cell Editor
 
 > Educational notebooks come with an AI-generated **Learning Roadmap** — a week-by-week, day-by-day plan broken into actionable tasks. The right panel hosts the cell-based editor where you write notes, attach files, and generate AI summaries. Progress is tracked live at the top.
 
 <p align="center">
-  <img src="docs/screenshots/Group_4.svg" alt="BitNote notebook layout with learning roadmap and cell editor" width="780"/>
+  <img src="docs/screenshots/Group_8.svg" alt="BitNote notebook layout with learning roadmap and cell editor" width="780"/>
+</p>
+
+---
+
+### 🤖 In-Cell AI Tools — AI Summary & BitBuddy Chat
+
+> Every cell in your notebook comes with built-in AI superpowers. Tap **Generate Summary** to get an instant AI-written breakdown of your notes, or open **BitBuddy** — an AI assistant that can explain concepts, break down formulas, give examples, and challenge you with recall questions — all in context of that specific cell.
+
+<p align="center">
+  <img src="docs/screenshots/Group_4.svg" alt="BitNote in-cell AI tools showing AI Summary and BitBuddy chat" width="780"/>
 </p>
 
 ---
