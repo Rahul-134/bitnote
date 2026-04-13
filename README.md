@@ -36,6 +36,48 @@
 
 ---
 
+## 📸 Screenshots
+
+### 🔐 Authentication — Sign Up & Log In
+
+> Seamlessly create an account or log in using your email and password, or skip the form entirely with **Google Sign-In**. The auth page features a clean card layout with tab-based switching between Sign Up and Log In modes.
+
+<p align="center">
+  <img src="docs/screenshots/Group_6.svg" alt="BitNote Sign Up and Log In screens" width="780"/>
+</p>
+
+---
+
+### 🏠 Home — Your Notes Dashboard
+
+> All your notebooks live in one place. The home dashboard gives you a bird's-eye view of every notebook you've created, with quick access to search, create a new note, and jump straight back in where you left off.
+
+<p align="center">
+  <img src="docs/screenshots/Group_7.svg" alt="BitNote Home dashboard showing notebooks" width="780"/>
+</p>
+
+---
+
+### 🤖 In-Cell AI Tools — AI Summary & BitBuddy Chat
+
+> Every cell in your notebook comes with built-in AI superpowers. Tap **Generate Summary** to get an instant AI-written breakdown of your notes, or open **BitBuddy** — an AI assistant that can explain concepts, break down formulas, give examples, and challenge you with recall questions — all in context of that specific cell.
+
+<p align="center">
+  <img src="docs/screenshots/Group_8.svg" alt="BitNote in-cell AI tools showing AI Summary and BitBuddy chat" width="780"/>
+</p>
+
+---
+
+### 📓 Notebook Layout — Learning Roadmap & Cell Editor
+
+> Educational notebooks come with an AI-generated **Learning Roadmap** — a week-by-week, day-by-day plan broken into actionable tasks. The right panel hosts the cell-based editor where you write notes, attach files, and generate AI summaries. Progress is tracked live at the top.
+
+<p align="center">
+  <img src="docs/screenshots/Group_4.svg" alt="BitNote notebook layout with learning roadmap and cell editor" width="780"/>
+</p>
+
+---
+
 ## 🏗️ Tech Stack
 
 | Layer | Technology |
