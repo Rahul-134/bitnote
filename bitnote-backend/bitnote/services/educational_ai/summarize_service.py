@@ -1,9 +1,6 @@
-import requests
-from requests.exceptions import ReadTimeout
+from bitnote.core.llm_client import generate_text
 
-
-def generate_summary_with_ollama(content: str) -> str:
-    prompt = f"""
+SYSTEM_PROMPT = """
 Summarize the following notes clearly and concisely.
 
 Rules:
@@ -18,22 +15,11 @@ Rules:
 - Do not refer to this prompt.
 - Do not add unrelated explanations.
 - Keep the explanation natural and easy to revise from.
-
-NOTES:
-{content}
 """
 
+
+def generate_summary_with_ollama(content: str) -> str:
     try:
-        res = requests.post(
-            "http://localhost:11434/api/generate",
-            json={"model": "gemma3", "prompt": prompt, "stream": False},
-            timeout=180, 
-        )
-
-        if res.status_code != 200:
-            raise Exception("Ollama failed")
-
-        return res.json()["response"].strip()
-
-    except ReadTimeout:
-        raise Exception("AI generation timed out. Try shorter content.")
+        return generate_text(SYSTEM_PROMPT, content).strip()
+    except Exception as e:
+        raise Exception(f"AI generation failed. Try shorter content. ({e})")

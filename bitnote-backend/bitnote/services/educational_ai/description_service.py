@@ -1,6 +1,4 @@
-import ollama
-
-MODEL_NAME = "gemma3"
+from bitnote.core.llm_client import generate_text
 
 SYSTEM_PROMPT = """
 You are an AI assistant for a note-taking app.
@@ -17,18 +15,7 @@ Rules:
 """
 
 def generate_notebook_description(title: str) -> str:
-    response = ollama.chat(
-        model=MODEL_NAME,
-        messages=[
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {
-                "role": "user",
-                "content": f"Notebook Title: {title}",
-            },
-        ],
-    )
-
-    text = response["message"]["content"].strip()
+    text = generate_text(SYSTEM_PROMPT, f"Notebook Title: {title}").strip()
 
     if len(text.split()) < 5:
         return f"Educational Notebook for structured learning and revision on {title}"

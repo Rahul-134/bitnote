@@ -1,8 +1,5 @@
-import ollama
+from bitnote.core.llm_client import generate_json
 from bitnote.schemas.learning_plan import LearningPlanRequest, LearningPlanResponse
-from bitnote.utils.json_utils import extract_json
-
-MODEL_NAME = "gemma3"
 
 SYSTEM_PROMPT = """
 
@@ -126,20 +123,8 @@ Primary subject: {payload.topic}
 Daily time available: {payload.time_per_day} minutes
 """
 
-    response = ollama.chat(
-        model=MODEL_NAME,
-        messages=[
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": user_prompt},
-        ],
-    )
+    parsed_json = generate_json(SYSTEM_PROMPT, user_prompt, schema=LearningPlanResponse)
 
-    raw_output = response["message"]["content"]
-
-    # Extract JSON (or fail)
-    parsed_json = extract_json(raw_output)
-
-    # Validate against schema (or fail)
-    learning_plan = LearningPlanResponse(**parsed_json)
-
-    return learning_plan
+    # Still validate against the schema even though generation was
+    # constrained to it — cheap insurance against a malformed edge case.
+    return LearningPlanResponse(**parsed_json)

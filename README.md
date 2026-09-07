@@ -84,7 +84,7 @@
 |-------|-----------|
 | **Backend** | Python, FastAPI |
 | **Frontend** | HTML, CSS (TailwindCSS), JavaScript |
-| **AI / LLM** | Ollama + `gemma3` model |
+| **AI / LLM** | Ollama (`gemma3`, local, default) — or Gemini (`gemini-3.5-flash-lite`, hosted), switchable via `.env` |
 | **Database** | SQLite |
 | **Auth** | Firebase Admin SDK (Google Sign-In) |
 | **Password Hashing** | Argon2 (via passlib) |
@@ -115,9 +115,9 @@ BitNote/
 │   │   ├── core/
 │   │   │   ├── config.py                    # App constants
 │   │   │   ├── database.py                  # SQLite connection
-│   │   │   ├── models.py                    # SQLAlchemy models (reference)
-│   │   │   ├── security.py                  # Password hashing & auth
-│   │   │   └── ollama_client.py             # Ollama LLM wrapper
+│   │   │   ├── security.py                  # Password hashing, JWT auth
+│   │   │   ├── rate_limit.py                 # Login/signup rate limiting
+│   │   │   └── llm_client.py                # LLM wrapper (Ollama or Gemini, via env var)
 │   │   ├── schemas/                         # Pydantic request/response models
 │   │   ├── services/educational_ai/         # AI service logic
 │   │   └── utils/                           # Helpers (JSON extraction)
@@ -176,11 +176,6 @@ cd bitnote-backend
 pip install -r requirements.txt
 ```
 
-> **Note:** You may also need to install additional packages that are imported but not listed in `requirements.txt`:
-> ```bash
-> pip install fastapi uvicorn ollama firebase-admin passlib[argon2] pydantic[email] aiosmtplib python-multipart sqlalchemy
-> ```
-
 ---
 
 ### 3️⃣ Set Up Ollama (Local AI)
@@ -204,6 +199,28 @@ ollama run gemma3 "Hello, are you working?"
 ```
 
 > The first pull may take a few minutes depending on your internet speed. The `gemma3` model is approximately 5GB.
+
+---
+
+### 🔁 Alternative: Use a Hosted LLM (Gemini) Instead of Ollama
+
+If you'd rather not run a local model — for example, when deploying to a server without
+enough RAM/GPU for Ollama — BitNote can call Google's Gemini API instead. Nothing about
+the app's behavior changes either way; it's a single environment variable.
+
+1. Copy `bitnote-backend/.env.example` to `bitnote-backend/.env`.
+2. Get a free API key at [aistudio.google.com/apikey](https://aistudio.google.com/apikey).
+3. Set the following in your `.env`:
+
+```bash
+LLM_PROVIDER=gemini
+GEMINI_API_KEY=your-key-here
+GEMINI_MODEL=gemini-3.5-flash-lite
+```
+
+That's it — no code changes needed. Leave `LLM_PROVIDER` unset (or set to `ollama`) to
+keep using local Ollama as before; `OLLAMA_MODEL` (default `gemma3`) works the same way
+if you want to swap to a different local model.
 
 ---
 
@@ -270,21 +287,15 @@ bitnote-backend/
 
 > ⚠️ **IMPORTANT:** This file contains your private key. **NEVER** commit it to GitHub. It is already listed in `.gitignore`.
 
-#### E. Update the Backend Firebase Path
+#### E. Firebase Key Path
 
-In `bitnote-backend/bitnote/api/auth.py`, update the path to your `firebase_key.json`:
+`bitnote-backend/bitnote/api/auth.py` automatically looks for `firebase_key.json` next to the `bitnote-backend` folder (i.e. where you placed it in step D) — no path editing needed.
 
-```python
-cred = credentials.Certificate(
-    r"path/to/your/bitnote-backend/firebase_key.json"
-)
+If you'd rather keep the key somewhere else, point the app at it with an environment variable instead of editing the source:
+
+```bash
+export FIREBASE_KEY_PATH=/path/to/your/firebase_key.json
 ```
-
-For example:
-- **Windows:** `r"D:\Projects\BitNote\bitnote-backend\firebase_key.json"`
-- **macOS/Linux:** `"/home/user/BitNote/bitnote-backend/firebase_key.json"`
-
-> 💡 **Tip:** Use an absolute path or the `os.path` module to make it portable.
 
 ---
 
@@ -440,19 +451,14 @@ print('✅ Database created successfully at bitnote/database/bitnote.db')
 "
 ```
 
-#### C. Update the Database Path
+#### C. Database Path
 
-In `bitnote-backend/bitnote/core/database.py`, update `DB_PATH` to match your setup:
+`bitnote-backend/bitnote/core/database.py` automatically resolves `DB_PATH` to `bitnote-backend/bitnote/database/bitnote.db` — no editing needed, and the folder is created automatically on first run.
 
-```python
-import os
+To point it somewhere else instead, set an environment variable rather than editing the source:
 
-DB_PATH = os.path.join(os.path.dirname(__file__), "..", "database", "bitnote.db")
-```
-
-Or use an absolute path:
-```python
-DB_PATH = r"D:\Projects\BitNote\bitnote-backend\bitnote\database\bitnote.db"
+```bash
+export BITNOTE_DB_PATH=/path/to/your/bitnote.db
 ```
 
 ---
@@ -644,25 +650,23 @@ BitNote uses **SQLite** with the following tables:
 
 1. **Firebase Key:** The `firebase_key.json` file is **secret**. Never push it to GitHub. It's already in `.gitignore`.
 
-2. **Hardcoded Paths:** The project currently has some hardcoded absolute paths in:
-   - `bitnote/core/database.py` — Database path
-   - `bitnote/api/auth.py` — Firebase key path
-   
-   Update these to match your local environment.
+2. **Auth tokens:** Login/signup issue a JWT session token, signed with `BITNOTE_SECRET_KEY`. If that env var isn't set, the app falls back to an insecure development key and prints a warning — **set `BITNOTE_SECRET_KEY` to a long random value before deploying anywhere real.**
 
-3. **CORS:** The backend allows requests only from `localhost:5500` and `localhost:3000`. Update `bitnote/main.py` if you use a different frontend port.
+3. **CORS:** The backend allows requests only from `localhost:5500` and `localhost:3000` by default. Set `BITNOTE_CORS_ORIGINS` (comma-separated) to allow other origins instead of editing `bitnote/main.py`.
 
-4. **Email Credentials:** The contact form has hardcoded email credentials in `contact.py`. For production, use environment variables.
+4. **Email Credentials:** The contact form has hardcoded email credentials in `contact.py`. For production, move these to environment variables.
 
-5. **Ollama:** The AI features require Ollama to be running locally. Without it, educational notebook creation, recall quizzes, and cell summarization will fail.
+5. **Ollama:** By default (`LLM_PROVIDER` unset or `ollama`), the AI features require Ollama to be running locally. Without it, educational notebook creation, recall quizzes, and cell summarization will fail. Set `LLM_PROVIDER=gemini` in `.env` to use a hosted model instead — see [Alternative: Use a Hosted LLM (Gemini)](#-alternative-use-a-hosted-llm-gemini-instead-of-ollama) above.
+
+6. **Login rate limiting:** `/auth/login`, `/auth/signup`, and `/auth/google` are rate-limited (10 requests/minute per IP) to slow down brute-force attempts. The limiter is in-memory, so it resets on restart and doesn't share state across multiple worker processes.
 
 ---
 
 ## 🛣️ Roadmap
 
-- [ ] Move secrets to environment variables (`.env`)
+- [x] Add JWT-based session tokens
+- [ ] Move remaining secrets (contact form email credentials) to environment variables
 - [ ] Migrate from SQLite to PostgreSQL
-- [ ] Add JWT-based session tokens
 - [ ] Deploy backend (Railway / Render)
 - [ ] Deploy frontend (Vercel / Netlify)
 - [ ] Add multiple AI model support

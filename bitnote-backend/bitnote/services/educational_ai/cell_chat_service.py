@@ -1,5 +1,5 @@
 from bitnote.schemas.cell_chat_schema import CellChatRequest
-from bitnote.core.ollama_client import generate_chat_response
+from bitnote.core.llm_client import generate_chat as generate_chat_response
 
 
 def generate_cell_chat_response(request: CellChatRequest) -> str:

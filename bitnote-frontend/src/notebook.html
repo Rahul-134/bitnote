@@ -5,6 +5,7 @@
     <meta charset="utf-8" />
     <meta content="width=device-width, initial-scale=1.0" name="viewport" />
     <title>BitNote Editor</title>
+    <script src="scripts/config.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@300;400;500;600;700&amp;display=swap"
         rel="stylesheet" />
     <link
@@ -201,7 +202,7 @@
         const userId = sessionStorage.getItem("user_id");
 
         async function loadNotebook() {
-            const res = await fetch(`http://localhost:8000/api/v1/notebooks/${noteId}?user_id=${userId}`);
+            const res = await authFetch(`${window.API_BASE}/api/v1/notebooks/${noteId}`);
             const note = await res.json();
 
             if (note.error) {
@@ -775,7 +776,7 @@
 
 
         async function loadTitle() {
-            const res = await fetch(`http://localhost:8000/api/v1/notebooks/${noteId}?user_id=${userId}`);
+            const res = await authFetch(`${window.API_BASE}/api/v1/notebooks/${noteId}`);
             const note = await res.json();
             window.__NOTE_TYPE__ = note.notebook_type;
 
@@ -891,8 +892,8 @@
             }
 
 
-            const res = await fetch(
-                `http://localhost:8000/api/v1/notebooks/${noteId}/cells?user_id=${userId}`
+            const res = await authFetch(
+                `${window.API_BASE}/api/v1/notebooks/${noteId}/cells`
             );
             const cells = await res.json();
 
@@ -950,8 +951,8 @@
             }
 
 
-            const res = await fetch(
-                `http://localhost:8000/api/v1/notebooks/${noteId}/tasks?user_id=${userId}`
+            const res = await authFetch(
+                `${window.API_BASE}/api/v1/notebooks/${noteId}/tasks`
             );
             tasks = await res.json();
 
@@ -1343,7 +1344,7 @@
     <div class="cell-content space-y-4">
         <textarea 
             class="w-full flex-1 resize-none overflow-y-auto bg-transparent border-none p-0 text-slate-700 dark:text-slate-300 text-lg leading-relaxed focus:ring-0 placeholder-slate-400" 
-            placeholder="Start typing...">${cell.content}</textarea>
+            placeholder="Start typing...">${cell.content || ""}</textarea>
 
         <div class="resize-handle"></div>
 
@@ -1562,8 +1563,8 @@
                 formData.append("file", file);
 
                 try {
-                    const res = await fetch(
-                        `http://localhost:8000/api/v1/notebooks/${noteId}/cells/${cell.cell_id}/attachments?user_id=${userId}`,
+                    const res = await authFetch(
+                        `${window.API_BASE}/api/v1/notebooks/${noteId}/cells/${cell.cell_id}/attachments`,
                         {
                             method: "POST",
                             body: formData
@@ -1604,8 +1605,8 @@
 
             async function loadAttachments() {
                 try {
-                    const res = await fetch(
-                        `http://localhost:8000/api/v1/notebooks/${noteId}/cells/${cell.cell_id}/attachments?user_id=${userId}`
+                    const res = await authFetch(
+                        `${window.API_BASE}/api/v1/notebooks/${noteId}/cells/${cell.cell_id}/attachments`
                     );
 
                     const attachments = await res.json();
@@ -1638,9 +1639,8 @@
                         : fileData.file_type === "image" ? "image"
                             : "insert_drive_file"}
             </span>
-            <a href="http://localhost:8000${fileData.url}"
-               target="_blank"
-               class="truncate hover:underline text-slate-700 dark:text-slate-200">
+            <a href="#"
+               class="attachment-open truncate hover:underline text-slate-700 dark:text-slate-200">
                 ${fileData.file_name}
             </a>
         </div>
@@ -1650,11 +1650,29 @@
         </button>
     `;
 
+                const openLink = item.querySelector(".attachment-open");
+
+                openLink.addEventListener("click", async (e) => {
+                    e.preventDefault();
+
+                    try {
+                        const res = await authFetch(`${window.API_BASE}${fileData.url}`);
+                        if (!res.ok) throw new Error("Failed to load attachment");
+
+                        const blob = await res.blob();
+                        const objectUrl = URL.createObjectURL(blob);
+                        window.open(objectUrl, "_blank");
+                    } catch (err) {
+                        console.error(err);
+                        alert("Failed to open attachment");
+                    }
+                });
+
                 const deleteBtn = item.querySelector(".delete-attachment");
 
                 deleteBtn.addEventListener("click", async () => {
-                    await fetch(
-                        `http://localhost:8000/api/v1/notebooks/${noteId}/cells/${cell.cell_id}/attachments/${fileData.attachment_id}?user_id=${userId}`,
+                    await authFetch(
+                        `${window.API_BASE}/api/v1/notebooks/${noteId}/cells/${cell.cell_id}/attachments/${fileData.attachment_id}`,
                         { method: "DELETE" }
                     );
 
@@ -1698,8 +1716,8 @@
                     details?.removeAttribute("open");
 
                     try {
-                        const res = await fetch(
-                            `http://localhost:8000/api/v1/notebooks/${noteId}/cells/${cell.cell_id}/summarize?user_id=${userId}`,
+                        const res = await authFetch(
+                            `${window.API_BASE}/api/v1/notebooks/${noteId}/cells/${cell.cell_id}/summarize`,
                             {
                                 method: "POST",
                                 headers: { "Content-Type": "application/json" },
@@ -1738,8 +1756,8 @@
                     e.preventDefault();
                     e.stopPropagation();
 
-                    await fetch(
-                        `http://localhost:8000/api/v1/notebooks/${noteId}/cells/${cell.cell_id}/summary?user_id=${userId}`,
+                    await authFetch(
+                        `${window.API_BASE}/api/v1/notebooks/${noteId}/cells/${cell.cell_id}/summary`,
                         { method: "DELETE" }
                     );
 
@@ -2127,8 +2145,8 @@ Let's learn.
             renderChatMessages();
 
             try {
-                const res = await fetch(
-                    `http://localhost:8000/api/v1/educational-ai/cell-chat`,
+                const res = await authFetch(
+                    `${window.API_BASE}/api/v1/educational-ai/cell-chat`,
                     {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
@@ -2274,16 +2292,19 @@ Let's learn.
                 activeCell = null;
             }
 
-            const res = await fetch(
-                `http://localhost:8000/api/v1/notebooks/${noteId}/cells?user_id=${userId}`,
+            const res = await authFetch(
+                `${window.API_BASE}/api/v1/notebooks/${noteId}/cells`,
                 { method: "POST" }
             );
 
             const newCell = await res.json();
 
-            // append to CURRENT week body
-            const currentWeek = getCurrentWeekFromTasks(tasks);
-            const body = document.querySelector(`#week-section-${currentWeek} .week-cells`);
+            // append to the correct container: week section for educational
+            // notes (server already picked the current week), flat cell
+            // list for general notes
+            const body = window.__NOTE_TYPE__ === "educational"
+                ? document.querySelector(`#week-section-${newCell.week} .week-cells`)
+                : document.getElementById("cellsContainer");
 
             renderCell(newCell, body.children.length, body.children.length + 1, body);
 
@@ -2297,7 +2318,7 @@ Let's learn.
         // })
 
         async function saveCellContent(notebookId, cellId, content) {
-            await fetch(`http://localhost:8000/api/v1/notebooks/${notebookId}/cells/${cellId}`, {
+            await authFetch(`${window.API_BASE}/api/v1/notebooks/${notebookId}/cells/${cellId}`, {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(content)
@@ -2327,8 +2348,8 @@ Let's learn.
         async function waitForAI() {
             showAiLoading();
             while (i >= 0) {
-                const res = await fetch(
-                    `http://localhost:8000/api/v1/notebooks/${noteId}/tasks?user_id=${userId}`
+                const res = await authFetch(
+                    `${window.API_BASE}/api/v1/notebooks/${noteId}/tasks`
                 );
 
                 const tasksData = await res.json();
@@ -2470,8 +2491,8 @@ Let's learn.
                 });
             });
 
-            await fetch(
-                `http://localhost:8000/api/v1/notebooks/${noteId}/cells/reorder?user_id=${userId}`,
+            await authFetch(
+                `${window.API_BASE}/api/v1/notebooks/${noteId}/cells/reorder`,
                 {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
@@ -2483,8 +2504,8 @@ Let's learn.
 
         async function persistTasks() {
             for (const [taskId, status] of dirtyTaskMap.entries()) {
-                await fetch(
-                    `http://localhost:8000/api/v1/notebooks/tasks/${taskId}?user_id=${userId}`,
+                await authFetch(
+                    `${window.API_BASE}/api/v1/notebooks/tasks/${taskId}`,
                     {
                         method: "PUT",
                         headers: { "Content-Type": "application/json" },
@@ -2521,8 +2542,8 @@ Let's learn.
             }
 
             for (const cellId of deletedCells) {
-                await fetch(
-                    `http://localhost:8000/api/v1/notebooks/${noteId}/cells/${cellId}?user_id=${userId}`,
+                await authFetch(
+                    `${window.API_BASE}/api/v1/notebooks/${noteId}/cells/${cellId}`,
                     { method: "DELETE" }
                 );
             }
@@ -2680,9 +2701,8 @@ Let's learn.
             recallModal.classList.remove("hidden");
             recallContent.innerHTML = "Loading...";
 
-            const res = await fetch(
-                `http://localhost:8000/api/v1/recall/sessions/${noteId}`,
-                { headers: { "x-user-id": userId } }
+            const res = await authFetch(
+                `${window.API_BASE}/api/v1/recall/sessions/${noteId}`
             );
 
             if (!res.ok) {
@@ -2762,12 +2782,9 @@ Let's learn.
 
                     if (!confirm("Delete this recall session?")) return;
 
-                    await fetch(
-                        `http://localhost:8000/api/v1/recall/session/${session.session_id}`,
-                        {
-                            method: "DELETE",
-                            headers: { "x-user-id": userId }
-                        }
+                    await authFetch(
+                        `${window.API_BASE}/api/v1/recall/session/${session.session_id}`,
+                        { method: "DELETE" }
                     );
 
                     openRecall(); // reload session list
@@ -2814,12 +2831,9 @@ Let's learn.
 
             document.getElementById("deleteSession")
                 .addEventListener("click", async () => {
-                    await fetch(
-                        `http://localhost:8000/api/v1/recall/session/${session.session_id}`,
-                        {
-                            method: "DELETE",
-                            headers: { "x-user-id": userId }
-                        }
+                    await authFetch(
+                        `${window.API_BASE}/api/v1/recall/session/${session.session_id}`,
+                        { method: "DELETE" }
                     );
                     renderNewSessionForm();
                 });
@@ -2870,13 +2884,12 @@ Let's learn.
 
             recallContent.innerHTML = "Generating questions...";
 
-            const res = await fetch(
-                `http://localhost:8000/api/v1/recall/generate/${noteId}`,
+            const res = await authFetch(
+                `${window.API_BASE}/api/v1/recall/generate/${noteId}`,
                 {
                     method: "POST",
                     headers: {
                         "Content-Type": "application/json",
-                        "x-user-id": userId
                     },
                     body: JSON.stringify({ difficulty, question_count })
                 }
@@ -2895,9 +2908,8 @@ Let's learn.
 
             recallContent.innerHTML = "Loading questions...";
 
-            const res = await fetch(
-                `http://localhost:8000/api/v1/recall/questions/session/${session_id}`,
-                { headers: { "x-user-id": userId } }
+            const res = await authFetch(
+                `${window.API_BASE}/api/v1/recall/questions/session/${session_id}`
             );
 
             if (!res.ok) {
@@ -3075,13 +3087,12 @@ Let's learn.
                 answer = selected.value;
             }
 
-            const res = await fetch(
-                `http://localhost:8000/api/v1/recall/evaluate`,
+            const res = await authFetch(
+                `${window.API_BASE}/api/v1/recall/evaluate`,
                 {
                     method: "POST",
                     headers: {
                         "Content-Type": "application/json",
-                        "x-user-id": userId
                     },
                     body: JSON.stringify({
                         question_id: questionId,
@@ -3127,13 +3138,12 @@ Let's learn.
             }
 
 
-            const res = await fetch(
-                `http://localhost:8000/api/v1/recall/session/evaluate/${session_id}`,
+            const res = await authFetch(
+                `${window.API_BASE}/api/v1/recall/session/evaluate/${session_id}`,
                 {
                     method: "POST",
                     headers: {
                         "Content-Type": "application/json",
-                        "x-user-id": userId
                     },
                     body: JSON.stringify(answers)
                 }

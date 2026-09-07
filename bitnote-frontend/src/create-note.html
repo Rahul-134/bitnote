@@ -5,6 +5,7 @@
     <meta charset="utf-8" />
     <meta content="width=device-width, initial-scale=1.0" name="viewport" />
     <title>BitNote - New Note Creation</title>
+    <script src="scripts/config.js"></script>
     <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
     <link
         href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
@@ -284,8 +285,8 @@
                 const courseTopic =
                     document.getElementById("courseTopic")?.value.trim() || null;
 
-                const res = await fetch(
-                    `http://localhost:8000/api/v1/notebooks/educational?user_id=${userId}`,
+                const res = await authFetch(
+                    `${window.API_BASE}/api/v1/notebooks/educational`,
                     {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
@@ -311,8 +312,8 @@
             }
 
             // 🔹 GENERAL NOTE FLOW (OLD)
-            const res = await fetch(
-                `http://localhost:8000/api/v1/notebooks?user_id=${userId}`,
+            const res = await authFetch(
+                `${window.API_BASE}/api/v1/notebooks`,
                 {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },

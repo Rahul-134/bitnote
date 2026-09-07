@@ -1,10 +1,15 @@
 import json
 import uuid
-from fastapi import APIRouter, Depends, HTTPException, Body, Header
+from fastapi import APIRouter, Depends, HTTPException, Body
 from bitnote.core.database import get_db
 
-# from bitnote.core.security import get_current_user
-from bitnote.core.ollama_client import generate_structured_response
+from bitnote.core.security import get_current_user
+from bitnote.core.llm_client import generate_json
+from bitnote.schemas.recall_schema import (
+    RecallQuestionItem,
+    AnswerEvaluation,
+    SessionAnswerEvaluation,
+)
 import time
 
 router = APIRouter(prefix="/recall", tags=["Recall"])
@@ -15,50 +20,15 @@ router = APIRouter(prefix="/recall", tags=["Recall"])
 # -----------------------------------------
 
 
-def extract_json_from_llm(text: str):
-    """
-    Extracts first valid JSON array/object from LLM output.
-    """
-    try:
-        return json.loads(text)
-    except:
-        pass
-
-    # Remove markdown fences
-    if "```" in text:
-        parts = text.split("```")
-        for part in parts:
-            part = part.strip()
-            if part.startswith("[") or part.startswith("{"):
-                try:
-                    return json.loads(part)
-                except:
-                    continue
-
-    # Try to find first JSON bracket
-
-    if text.find("[") == -1:
-        start = text.find("{")
-        end = text.rfind("}")
-    else:
-        start = text.find("[")
-        end = text.rfind("]")
-
-    if start != -1 and end != -1:
-        possible_json = text[start : end + 1]
-        return json.loads(possible_json)
-
-    raise ValueError("No valid JSON found")
-
-
 @router.post("/generate/{notebook_id}")
 def generate_recall_questions(
     notebook_id: str,
     difficulty: str = Body(...),
     question_count: int = Body(...),
-    user_id: int = Header(..., alias="x-user-id"),
+    current_user: dict = Depends(get_current_user),
     db=Depends(get_db),
 ):
+    user_id = current_user["user_id"]
 
     # Ownership check
     owner = db.execute(
@@ -176,12 +146,12 @@ Return JSON format ONLY:
 ]
 """
 
-    response = generate_structured_response(system_prompt, user_prompt)
-
     try:
-        questions = extract_json_from_llm(response)
+        questions = generate_json(
+            system_prompt, user_prompt, schema=list[RecallQuestionItem]
+        )
     except Exception as e:
-        print("LLM RAW RESPONSE:\n", response)
+        print("LLM error generating recall questions:", e)
         raise HTTPException(status_code=500, detail="LLM returned invalid JSON")
 
     for q in questions:
@@ -210,9 +180,10 @@ Return JSON format ONLY:
 @router.get("/questions/{notebook_id}")
 def get_recall_questions(
     notebook_id: str,
-    user_id: int = Header(..., alias="x-user-id"),
+    current_user: dict = Depends(get_current_user),
     db=Depends(get_db),
 ):
+    user_id = current_user["user_id"]
 
     owner = db.execute(
         "SELECT 1 FROM notebooks WHERE notebook_id = ? AND user_id = ?",
@@ -261,7 +232,7 @@ def get_recall_questions(
 def evaluate_answer(
     question_id: int = Body(...),
     user_answer: str = Body(...),
-    user_id: int = Header(..., alias="x-user-id"),
+    current_user: dict = Depends(get_current_user),
     db=Depends(get_db),
 ):
 
@@ -301,12 +272,10 @@ Return ONLY valid JSON:
 }}
 """
 
-    response = generate_structured_response(system_prompt, user_prompt)
-
     try:
-        result = extract_json_from_llm(response)
+        result = generate_json(system_prompt, user_prompt, schema=AnswerEvaluation)
     except Exception as e:
-        print("LLM RAW RESPONSE:\n", response)
+        print("LLM error evaluating answer:", e)
         raise HTTPException(status_code=500, detail="LLM returned invalid JSON")
 
     db.execute(
@@ -325,9 +294,10 @@ Return ONLY valid JSON:
 @router.get("/stats/{notebook_id}")
 def get_stats(
     notebook_id: str,
-    user_id: int = Header(..., alias="x-user-id"),
+    current_user: dict = Depends(get_current_user),
     db=Depends(get_db),
 ):
+    user_id = current_user["user_id"]
 
     owner = db.execute(
         "SELECT 1 FROM notebooks WHERE notebook_id = ? AND user_id = ?",
@@ -366,7 +336,7 @@ def get_stats(
 @router.delete("/session/{session_id}")
 def delete_session(
     session_id: str,
-    user_id: int = Header(..., alias="x-user-id"),
+    current_user: dict = Depends(get_current_user),
     db=Depends(get_db),
 ):
 
@@ -399,7 +369,11 @@ def delete_session(
 
 
 @router.post("/session/complete/{session_id}")
-def complete_session(session_id: str, user_id: int, db=Depends(get_db)):
+def complete_session(
+    session_id: str,
+    current_user: dict = Depends(get_current_user),
+    db=Depends(get_db),
+):
 
     # Get all scores in this session
     rows = db.execute(
@@ -434,7 +408,7 @@ def complete_session(session_id: str, user_id: int, db=Depends(get_db)):
 @router.get("/sessions/{notebook_id}")
 def get_sessions(
     notebook_id: str,
-    user_id: int = Header(..., alias="x-user-id"),
+    current_user: dict = Depends(get_current_user),
     db=Depends(get_db),
 ):
 
@@ -460,7 +434,7 @@ def get_sessions(
 def evaluate_session(
     session_id: str,
     answers: dict = Body(...),
-    user_id: int = Header(..., alias="x-user-id"),
+    current_user: dict = Depends(get_current_user),
     db=Depends(get_db),
 ):
 
@@ -563,8 +537,9 @@ Correct Answer: {q['answer']}
 Student Answer: {user_answer}
 """
 
-        response = generate_structured_response(system_prompt, user_prompt)
-        result = extract_json_from_llm(response)
+        result = generate_json(
+            system_prompt, user_prompt, schema=SessionAnswerEvaluation
+        )
 
         score = 0.0
 
@@ -617,7 +592,7 @@ Student Answer: {user_answer}
 @router.get("/questions/session/{session_id}")
 def get_session_questions(
     session_id: str,
-    user_id: int = Header(..., alias="x-user-id"),
+    current_user: dict = Depends(get_current_user),
     db=Depends(get_db),
 ):
 

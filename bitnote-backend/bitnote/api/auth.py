@@ -1,16 +1,21 @@
-from fastapi import APIRouter, HTTPException
+import os
+from pathlib import Path
+
+from fastapi import APIRouter, Depends, HTTPException
 from bitnote.core.database import get_db
-from bitnote.core.security import hash_password, verify_password
+from bitnote.core.security import hash_password, verify_password, create_access_token
+from bitnote.core.rate_limit import rate_limit_auth
 from bitnote.schemas.auth_schema import SignupRequest, LoginRequest, google_LoginRequest
 
-import os
 import firebase_admin
 from firebase_admin import credentials, auth
 
-router = APIRouter(prefix="/auth", tags=["Auth"])
+router = APIRouter(prefix="/auth", tags=["Auth"], dependencies=[Depends(rate_limit_auth)])
 
-_firebase_key_path = os.path.join(os.path.dirname(__file__), "..", "..", "firebase_key.json")
-cred = credentials.Certificate(_firebase_key_path)
+DEFAULT_FIREBASE_KEY_PATH = Path(__file__).resolve().parent.parent.parent / "firebase_key.json"
+FIREBASE_KEY_PATH = os.getenv("FIREBASE_KEY_PATH", str(DEFAULT_FIREBASE_KEY_PATH))
+
+cred = credentials.Certificate(FIREBASE_KEY_PATH)
 firebase_admin.initialize_app(cred)
 
 
@@ -56,10 +61,13 @@ def login(data: LoginRequest):
     if not verify_password(data.password, user["password_hash"]):
         raise HTTPException(status_code=401, detail="Incorrect password")
 
+    token = create_access_token(user["user_id"], user["username"])
+
     return {
         "message": "Login successful",
         "user_id": user["user_id"],
         "username": user["username"],
+        "token": token,
     }
 
 
@@ -89,12 +97,14 @@ def google_signin(data: google_LoginRequest):
 
     # 4️ Existing user → login
     if user:
+        token = create_access_token(user["user_id"], user["username"])
         return {
             "message": "Login successful",
             "user_id": user["user_id"],
             "username": user["username"],
             "status": "logged_in",
-            "pic": pic
+            "pic": pic,
+            "token": token,
         }
 
     # 5️ New user → signup
@@ -114,10 +124,13 @@ def google_signin(data: google_LoginRequest):
         (email,),
     ).fetchone()
 
+    token = create_access_token(new_user["user_id"], new_user["username"])
+
     return {
         "message": "Signup successful",
         "user_id": new_user["user_id"],
         "username": new_user["username"],
         "status": "logged_in",
-        "pic": pic
+        "pic": pic,
+        "token": token,
     }

@@ -3,6 +3,7 @@
 
 <head>
 
+    <script src="scripts/config.js"></script>
     <script>
         if (localStorage.getItem("isLoggedIn") !== "true") {
             window.location.href = "index.html";
@@ -313,8 +314,7 @@
             });
 
 
-            const userId = sessionStorage.getItem("user_id");
-            const notebooks = await fetch(`http://localhost:8000/api/v1/notebooks?user_id=${userId}`).then(r => r.json());
+            const notebooks = await authFetch(`${window.API_BASE}/api/v1/notebooks`).then(r => r.json());
 
             const notebookArea = document.getElementById("notebooks_area");
 
@@ -575,10 +575,9 @@
                 if (!newTitle) return;
 
                 const notebookId = activeNotebookCard.dataset.noteId;
-                const userId = sessionStorage.getItem("user_id");
 
-                const res = await fetch(
-                    `http://localhost:8000/api/v1/notebooks/${notebookId}/rename?user_id=${userId}`,
+                const res = await authFetch(
+                    `${window.API_BASE}/api/v1/notebooks/${notebookId}/rename`,
                     {
                         method: "PATCH",
                         headers: { "Content-Type": "application/json" },
@@ -601,10 +600,9 @@
                 if (!activeNotebookCard) return;
 
                 const notebookId = activeNotebookCard.dataset.noteId;
-                const userId = sessionStorage.getItem("user_id");
 
-                const res = await fetch(
-                    `http://localhost:8000/api/v1/notebooks/${notebookId}?user_id=${userId}`,
+                const res = await authFetch(
+                    `${window.API_BASE}/api/v1/notebooks/${notebookId}`,
                     { method: "DELETE" }
                 );
 

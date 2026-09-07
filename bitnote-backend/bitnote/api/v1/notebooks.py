@@ -9,7 +9,7 @@ import threading
 
 import os
 from fastapi import UploadFile, File
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, FileResponse
 from pathlib import Path
 
 from bitnote.core.security import get_current_user
@@ -95,7 +95,12 @@ def get_current_week_from_tasks(notebook_id: str, db):
 
 
 @router.post("/")
-def create_notebook(payload: NotebookCreate, user_id: int, db=Depends(get_db)):
+def create_notebook(
+    payload: NotebookCreate,
+    current_user: dict = Depends(get_current_user),
+    db=Depends(get_db),
+):
+    user_id = current_user["user_id"]
     notebook_id = str(uuid.uuid4())
     # db.execute("BEGIN IMMEDIATE")
 
@@ -123,7 +128,8 @@ def create_notebook(payload: NotebookCreate, user_id: int, db=Depends(get_db)):
 
 
 @router.get("/")
-def get_notebooks(user_id: int, db=Depends(get_db)):
+def get_notebooks(current_user: dict = Depends(get_current_user), db=Depends(get_db)):
+    user_id = current_user["user_id"]
     cursor = db.execute(
         "SELECT * FROM notebooks WHERE user_id = ? ORDER BY created_at DESC", (user_id,)
     )
@@ -131,7 +137,12 @@ def get_notebooks(user_id: int, db=Depends(get_db)):
 
 
 @router.get("/{notebook_id}")
-def get_notebook(notebook_id: str, user_id: int, db=Depends(get_db)):
+def get_notebook(
+    notebook_id: str,
+    current_user: dict = Depends(get_current_user),
+    db=Depends(get_db),
+):
+    user_id = current_user["user_id"]
     cursor = db.execute(
         """
         SELECT * FROM notebooks
@@ -149,8 +160,12 @@ def get_notebook(notebook_id: str, user_id: int, db=Depends(get_db)):
 
 @router.patch("/{notebook_id}/rename")
 def rename_notebook(
-    notebook_id: str, payload: RenameNotebookPayload, user_id: str, db=Depends(get_db)
+    notebook_id: str,
+    payload: RenameNotebookPayload,
+    current_user: dict = Depends(get_current_user),
+    db=Depends(get_db),
 ):
+    user_id = current_user["user_id"]
     if not payload.title.strip():
         raise HTTPException(status_code=400, detail="Title cannot be empty")
 
@@ -174,7 +189,12 @@ def rename_notebook(
 
 
 @router.get("/{notebook_id}/cells")
-def get_cells(notebook_id: str, user_id: int, db=Depends(get_db)):
+def get_cells(
+    notebook_id: str,
+    current_user: dict = Depends(get_current_user),
+    db=Depends(get_db),
+):
+    user_id = current_user["user_id"]
     owner = db.execute(
         "SELECT 1 FROM notebooks WHERE notebook_id = ? AND user_id = ?",
         (notebook_id, user_id),
@@ -211,7 +231,12 @@ def get_cells(notebook_id: str, user_id: int, db=Depends(get_db)):
 
 
 @router.post("/{notebook_id}/cells")
-def add_cell(notebook_id: str, user_id: int, db=Depends(get_db)):
+def add_cell(
+    notebook_id: str,
+    current_user: dict = Depends(get_current_user),
+    db=Depends(get_db),
+):
+    user_id = current_user["user_id"]
     # db.execute("BEGIN IMMEDIATE")
 
     owner = db.execute(
@@ -249,9 +274,22 @@ def add_cell(notebook_id: str, user_id: int, db=Depends(get_db)):
 
 @router.put("/{notebook_id}/cells/{cell_id}")
 def update_cell(
-    cell_id: str, notebook_id: str, content: str = Body(...), db=Depends(get_db)
+    cell_id: str,
+    notebook_id: str,
+    content: str = Body(...),
+    current_user: dict = Depends(get_current_user),
+    db=Depends(get_db),
 ):
+    user_id = current_user["user_id"]
     # db.execute("BEGIN IMMEDIATE")
+
+    owner = db.execute(
+        "SELECT 1 FROM notebooks WHERE notebook_id = ? AND user_id = ?",
+        (notebook_id, user_id),
+    ).fetchone()
+
+    if not owner:
+        raise HTTPException(status_code=403, detail="Unauthorized")
 
     db.execute(
         "UPDATE cells SET user_content = ? WHERE cell_id = ? AND notebook_id = ?",
@@ -263,7 +301,13 @@ def update_cell(
 
 
 @router.delete("/{notebook_id}/cells/{cell_id}")
-def delete_cell(notebook_id: str, cell_id: str, user_id: int, db=Depends(get_db)):
+def delete_cell(
+    notebook_id: str,
+    cell_id: str,
+    current_user: dict = Depends(get_current_user),
+    db=Depends(get_db),
+):
+    user_id = current_user["user_id"]
     db.execute("BEGIN")
 
     # Ownership check
@@ -318,9 +362,10 @@ def move_cell(
     notebook_id: str,
     cell_id: str,
     payload: MoveCellPayload,
-    user_id: int,
+    current_user: dict = Depends(get_current_user),
     db=Depends(get_db),
 ):
+    user_id = current_user["user_id"]
     db.execute("BEGIN")
 
     owner = db.execute(
@@ -380,9 +425,10 @@ def move_cell_to_week(
     notebook_id: str,
     cell_id: str,
     payload: MoveCellWeekPayload,
-    user_id: int,
+    current_user: dict = Depends(get_current_user),
     db=Depends(get_db),
 ):
+    user_id = current_user["user_id"]
     db.execute("BEGIN")
 
     # Ownership check
@@ -455,9 +501,10 @@ def summarize_cell(
     notebook_id: str,
     cell_id: str,
     payload: SummarizeCellPayload,
-    user_id: int,
+    current_user: dict = Depends(get_current_user),
     db=Depends(get_db),
 ):
+    user_id = current_user["user_id"]
     owner = db.execute(
         "SELECT 1 FROM notebooks WHERE notebook_id = ? AND user_id = ?",
         (notebook_id, user_id),
@@ -491,9 +538,10 @@ def summarize_cell(
 def delete_cell_summary(
     notebook_id: str,
     cell_id: str,
-    user_id: int,
+    current_user: dict = Depends(get_current_user),
     db=Depends(get_db),
 ):
+    user_id = current_user["user_id"]
     owner = db.execute(
         "SELECT 1 FROM notebooks WHERE notebook_id = ? AND user_id = ?",
         (notebook_id, user_id),
@@ -520,9 +568,10 @@ def upload_attachment(
     notebook_id: str,
     cell_id: str,
     file: UploadFile = File(...),
-    user_id: int = None,
+    current_user: dict = Depends(get_current_user),
     db=Depends(get_db),
 ):
+    user_id = current_user["user_id"]
     # Ownership check
     owner = db.execute(
         "SELECT 1 FROM notebooks WHERE notebook_id = ? AND user_id = ?",
@@ -585,7 +634,7 @@ def upload_attachment(
         "attachment_id": attachment_id,
         "file_name": file.filename,
         "file_type": file_type,
-        "url": f"/uploads/{notebook_id}/{cell_id}/{file.filename}",
+        "url": f"/api/v1/notebooks/{notebook_id}/cells/{cell_id}/attachments/{attachment_id}/download",
     }
 
 
@@ -593,9 +642,10 @@ def upload_attachment(
 def get_attachments(
     notebook_id: str,
     cell_id: str,
-    user_id: int,
+    current_user: dict = Depends(get_current_user),
     db=Depends(get_db),
 ):
+    user_id = current_user["user_id"]
     owner = db.execute(
         "SELECT 1 FROM notebooks WHERE notebook_id = ? AND user_id = ?",
         (notebook_id, user_id),
@@ -622,11 +672,43 @@ def get_attachments(
                 "attachment_id": row["attachment_id"],
                 "file_name": file_name,
                 "file_type": row["file_type"],
-                "url": f"/uploads/{notebook_id}/{cell_id}/{file_name}",
+                "url": f"/api/v1/notebooks/{notebook_id}/cells/{cell_id}/attachments/{row['attachment_id']}/download",
             }
         )
 
     return results
+
+
+@router.get("/{notebook_id}/cells/{cell_id}/attachments/{attachment_id}/download")
+def download_attachment(
+    notebook_id: str,
+    cell_id: str,
+    attachment_id: str,
+    current_user: dict = Depends(get_current_user),
+    db=Depends(get_db),
+):
+    user_id = current_user["user_id"]
+    owner = db.execute(
+        "SELECT 1 FROM notebooks WHERE notebook_id = ? AND user_id = ?",
+        (notebook_id, user_id),
+    ).fetchone()
+
+    if not owner:
+        raise HTTPException(status_code=403, detail="Unauthorized")
+
+    row = db.execute(
+        """
+        SELECT file_name, storage_path
+        FROM cell_attachments
+        WHERE attachment_id = ? AND cell_id = ?
+        """,
+        (attachment_id, cell_id),
+    ).fetchone()
+
+    if not row:
+        raise HTTPException(status_code=404, detail="Attachment not found")
+
+    return FileResponse(row["storage_path"], filename=row["file_name"])
 
 
 @router.delete("/{notebook_id}/cells/{cell_id}/attachments/{attachment_id}")
@@ -634,9 +716,10 @@ def delete_attachment(
     notebook_id: str,
     cell_id: str,
     attachment_id: str,
-    user_id: int,
+    current_user: dict = Depends(get_current_user),
     db=Depends(get_db),
 ):
+    user_id = current_user["user_id"]
     owner = db.execute(
         "SELECT 1 FROM notebooks WHERE notebook_id = ? AND user_id = ?",
         (notebook_id, user_id),
@@ -675,8 +758,11 @@ def delete_attachment(
 
 @router.post("/educational")
 def create_educational_notebook(
-    payload: LearningPlanRequest, user_id: int, db=Depends(get_db)
+    payload: LearningPlanRequest,
+    current_user: dict = Depends(get_current_user),
+    db=Depends(get_db),
 ):
+    user_id = current_user["user_id"]
     notebook_id = str(uuid.uuid4())
     created_at = int(time.time())
 
@@ -758,7 +844,12 @@ def create_educational_notebook(
 
 
 @router.get("/{notebook_id}/tasks")
-def get_tasks(notebook_id: str, user_id: str, db=Depends(get_db)):
+def get_tasks(
+    notebook_id: str,
+    current_user: dict = Depends(get_current_user),
+    db=Depends(get_db),
+):
+    user_id = current_user["user_id"]
     owner = db.execute(
         "SELECT 1 FROM notebooks WHERE notebook_id = ? AND user_id = ?",
         (notebook_id, user_id),
@@ -781,7 +872,13 @@ def get_tasks(notebook_id: str, user_id: str, db=Depends(get_db)):
 
 
 @router.put("/tasks/{task_id}")
-def update_task_status(task_id: str, payload: dict, user_id: int, db=Depends(get_db)):
+def update_task_status(
+    task_id: str,
+    payload: dict,
+    current_user: dict = Depends(get_current_user),
+    db=Depends(get_db),
+):
+    user_id = current_user["user_id"]
     status = payload.get("status")
 
     if status not in ("pending", "done"):
@@ -819,8 +916,12 @@ def update_task_status(task_id: str, payload: dict, user_id: int, db=Depends(get
 
 @router.post("/{notebook_id}/cells/reorder")
 def reorder_cells(
-    notebook_id: str, payload: list[CellOrderPayload], user_id: int, db=Depends(get_db)
+    notebook_id: str,
+    payload: list[CellOrderPayload],
+    current_user: dict = Depends(get_current_user),
+    db=Depends(get_db),
 ):
+    user_id = current_user["user_id"]
     db.execute("BEGIN")
 
     owner = db.execute(
@@ -846,7 +947,12 @@ def reorder_cells(
 
 
 @router.delete("/{notebook_id}")
-def delete_notebook(notebook_id: str, user_id: str, db=Depends(get_db)):
+def delete_notebook(
+    notebook_id: str,
+    current_user: dict = Depends(get_current_user),
+    db=Depends(get_db),
+):
+    user_id = current_user["user_id"]
     db.execute("BEGIN")
 
     owner = db.execute(
