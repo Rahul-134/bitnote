@@ -24,8 +24,9 @@ from bitnote.services.educational_ai.summarize_service import (
 
 router = APIRouter(prefix="/notebooks", tags=["notebooks"])
 
-UPLOAD_ROOT = Path("uploads")
-UPLOAD_ROOT.mkdir(exist_ok=True)
+DEFAULT_UPLOAD_ROOT = Path(__file__).resolve().parent.parent.parent.parent / "uploads"
+UPLOAD_ROOT = Path(os.getenv("BITNOTE_UPLOAD_ROOT", str(DEFAULT_UPLOAD_ROOT)))
+UPLOAD_ROOT.mkdir(parents=True, exist_ok=True)
 
 
 class NotebookCreate(BaseModel):

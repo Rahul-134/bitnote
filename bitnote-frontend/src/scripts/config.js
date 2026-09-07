@@ -2,7 +2,7 @@
 // Defaults to the local dev backend; override for other environments by
 // setting `window.API_BASE` in a <script> tag before this file loads, e.g.:
 //   <script>window.API_BASE = "https://api.example.com";</script>
-window.API_BASE = window.API_BASE || "http://localhost:8000";
+window.API_BASE = window.API_BASE || "https://bitnote-97rt.onrender.com";
 
 // fetch() wrapper that attaches the logged-in user's session token
 // (stored at sessionStorage "token") as an Authorization header.
