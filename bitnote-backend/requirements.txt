@@ -23,3 +23,6 @@ aiosmtplib>=3.0.0
 
 # HTTP requests
 requests>=2.31.0
+
+# Database (only needed if DB_PROVIDER=postgres; SQLite is built into Python)
+psycopg2-binary>=2.9.9

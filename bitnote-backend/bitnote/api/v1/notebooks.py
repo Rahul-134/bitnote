@@ -1,4 +1,5 @@
 import time
+from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException
 from bitnote.core.database import get_db
 from fastapi import Body
@@ -252,12 +253,12 @@ def add_cell(
 
     order_index = db.execute(
         """
-    SELECT COUNT(*)
+    SELECT COUNT(*) AS cnt
     FROM cells
     WHERE notebook_id = ? AND week = ?
     """,
         (notebook_id, current_week),
-    ).fetchone()[0]
+    ).fetchone()["cnt"]
 
     cell_id = str(uuid.uuid4())
 
@@ -476,12 +477,12 @@ def move_cell_to_week(
     # Compute new index in target week
     new_index = db.execute(
         """
-        SELECT COUNT(*)
+        SELECT COUNT(*) AS cnt
         FROM cells
         WHERE notebook_id = ? AND week = ?
         """,
         (notebook_id, target_week),
-    ).fetchone()[0]
+    ).fetchone()["cnt"]
 
     # Move cell
     db.execute(
@@ -801,7 +802,7 @@ def create_educational_notebook(
             """
             INSERT INTO educational_metadata (
                 notebook_id, learning_goal, course_topic, syllabus, roadmap, progress, created_at
-            ) VALUES (?, ?, ?, ?, ?, ?, datetime('now'))
+            ) VALUES (?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 notebook_id,
@@ -810,6 +811,7 @@ def create_educational_notebook(
                 json.dumps(learning_plan.syllabus),
                 json.dumps([week.dict() for week in learning_plan.roadmap]),
                 0.0,
+                datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S"),
             ),
         )
 
