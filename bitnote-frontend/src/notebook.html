@@ -1442,8 +1442,8 @@
       <span class="material-symbols-outlined text-[20px]">auto_awesome</span>
     </summary>
 
-    <div class="absolute right-10 top-0 bg-white dark:bg-slate-800 ${isCellEmpty ? "opacity-50" : ""} border-2 border-blue-100 dark:border-blue-900 rounded-xl shadow-xl w-56 overflow-hidden z-30 origin-top-right animate-in fade-in zoom-in-95 duration-100">
-      
+    <div data-ai-panel class="absolute right-10 top-0 bg-white dark:bg-slate-800 ${isCellEmpty ? "opacity-50" : ""} border-2 border-blue-100 dark:border-blue-900 rounded-xl shadow-xl w-56 overflow-hidden z-30 origin-top-right animate-in fade-in zoom-in-95 duration-100">
+
       <!-- Header -->
       <div class="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/40 dark:to-indigo-950/40 px-3 py-2.5 border-b border-blue-100 dark:border-blue-900">
         <div class="flex items-center gap-2">
@@ -1694,6 +1694,7 @@
 
             const aiWrapper = wrapper.querySelector("[data-ai-wrapper]");
             const aiTrigger = wrapper.querySelector("[data-ai-trigger]");
+            const aiPanel = wrapper.querySelector("[data-ai-panel]");
 
             const summarizeBtn = wrapper.querySelector('[data-ai-action="summarize"]');
             if (summarizeBtn) {
@@ -1830,6 +1831,7 @@
                         );
                         aiTrigger.classList.add("text-slate-300", "cursor-not-allowed");
                         aiTrigger.title = "Add content to use AI tools";
+                        aiPanel?.classList.add("opacity-50");
                     } else {
                         aiWrapper.classList.remove("pointer-events-none");
                         aiTrigger.classList.remove("text-slate-300", "cursor-not-allowed");
@@ -1841,6 +1843,7 @@
                             "cursor-pointer"
                         );
                         aiTrigger.title = "AI Tools";
+                        aiPanel?.classList.remove("opacity-50");
                     }
                 }
             });
