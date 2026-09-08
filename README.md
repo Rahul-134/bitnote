@@ -85,7 +85,7 @@
 | **Backend** | Python, FastAPI |
 | **Frontend** | HTML, CSS (TailwindCSS), JavaScript |
 | **AI / LLM** | Ollama (`gemma3`, local, default) — or Gemini (`gemini-3.5-flash-lite`, hosted), switchable via `.env` |
-| **Database** | SQLite |
+| **Database** | SQLite (default, zero setup) or Postgres — switchable via `.env` |
 | **Auth** | Firebase Admin SDK (Google Sign-In) |
 | **Password Hashing** | Argon2 (via passlib) |
 | **Email** | aiosmtplib (Gmail SMTP) |
@@ -114,13 +114,14 @@ BitNote/
 │   │   │           └── checklist.py
 │   │   ├── core/
 │   │   │   ├── config.py                    # App constants
-│   │   │   ├── database.py                  # SQLite connection
+│   │   │   ├── database.py                  # SQLite (default) or Postgres, via DB_PROVIDER
 │   │   │   ├── security.py                  # Password hashing, JWT auth
 │   │   │   ├── rate_limit.py                 # Login/signup rate limiting
 │   │   │   └── llm_client.py                # LLM wrapper (Ollama or Gemini, via env var)
 │   │   ├── schemas/                         # Pydantic request/response models
-│   │   ├── services/educational_ai/         # AI service logic
-│   │   └── utils/                           # Helpers (JSON extraction)
+│   │   └── services/educational_ai/         # AI service logic
+│   ├── schema_postgres.sql                  # Postgres DDL (only needed if DB_PROVIDER=postgres)
+│   ├── .env.example                         # All available env vars, documented
 │   ├── firebase_key.json                    # 🔑 Firebase credentials (DO NOT COMMIT)
 │   ├── requirements.txt
 │   └── README.md
@@ -151,7 +152,7 @@ BitNote/
 Make sure you have the following installed:
 
 - **Python 3.12+** — [Download](https://www.python.org/downloads/)
-- **Ollama** — [Download](https://ollama.com/download)
+- **Ollama** — [Download](https://ollama.com/download) (or skip it and use a free [Gemini API key](https://aistudio.google.com/apikey) instead — see [Alternative: Use a Hosted LLM](#-alternative-use-a-hosted-llm-gemini-instead-of-ollama) below)
 - **Git** — [Download](https://git-scm.com/downloads)
 - A **Google account** (for Firebase setup)
 - A code editor (VS Code, PyCharm, etc.)
@@ -461,6 +462,8 @@ To point it somewhere else instead, set an environment variable rather than edit
 export BITNOTE_DB_PATH=/path/to/your/bitnote.db
 ```
 
+> 💡 **Using Postgres instead?** Set `DB_PROVIDER=postgres` and `DATABASE_URL=<connection string>` in your `.env`, then load `bitnote-backend/schema_postgres.sql` once against your database. No code changes needed either way — see [Deployment](#-deployment) for the full walkthrough (this is how the live deployment runs).
+
 ---
 
 ### 6️⃣ Configure Email (Contact Form) — Optional
@@ -583,7 +586,7 @@ npx serve -p 5500
 
 ## 🗄️ Database Schema
 
-BitNote uses **SQLite** with the following tables:
+BitNote uses **SQLite** by default (zero setup) with the same 9 tables also available as Postgres DDL in `bitnote-backend/schema_postgres.sql`, for deployments needing real persistence — see [Deployment](#-deployment) below.
 
 ```
 ┌─────────────────┐     ┌──────────────────────┐
@@ -646,6 +649,58 @@ BitNote uses **SQLite** with the following tables:
 
 ---
 
+## 🚢 Deployment
+
+BitNote has been deployed and verified end-to-end on a fully free stack — no code changes needed, just configuration:
+
+- **Frontend** → [Vercel](https://vercel.com) (static hosting, no build step)
+- **Backend** → [Render](https://render.com) (free web service)
+- **Database** → [Neon](https://neon.tech) (free serverless Postgres)
+- **LLM** → [Gemini](https://aistudio.google.com/apikey) (free tier, hosted)
+
+### 1. Database (Neon, or any Postgres)
+
+1. Create a free project at [neon.tech](https://neon.tech) — no card required.
+2. Load the schema once against it:
+   ```bash
+   psql "$DATABASE_URL" -f bitnote-backend/schema_postgres.sql
+   ```
+3. Keep the connection string handy for the next step.
+
+### 2. Backend (Render)
+
+1. Render dashboard → **New** → **Web Service** → connect this repo → **Root Directory**: `bitnote-backend`.
+2. **Build Command**: `pip install -r requirements.txt`
+3. **Start Command**: `uvicorn bitnote.main:app --host 0.0.0.0 --port $PORT`
+4. **Environment** tab → **Secret Files** → add `firebase_key.json` with your Firebase service account contents (Render mounts it at `/etc/secrets/firebase_key.json`).
+5. **Environment Variables**:
+   ```
+   BITNOTE_SECRET_KEY=<a long random string>
+   DB_PROVIDER=postgres
+   DATABASE_URL=<your Neon connection string>
+   FIREBASE_KEY_PATH=/etc/secrets/firebase_key.json
+   LLM_PROVIDER=gemini
+   GEMINI_API_KEY=<your key>
+   GEMINI_MODEL=gemini-3.5-flash-lite
+   BITNOTE_CORS_ORIGINS=<your Vercel URL, added in step 3>
+   ```
+   Don't set `BITNOTE_DB_PATH` or `BITNOTE_UPLOAD_ROOT` unless you've attached a persistent disk — Render's free plan doesn't support one, and pointing either at a path that doesn't exist will crash the app on boot with a `Permission denied` error.
+6. Deploy. Your API is live at `https://<your-service>.onrender.com`.
+
+### 3. Frontend (Vercel)
+
+1. Vercel dashboard → **New Project** → import this repo → **Root Directory**: `bitnote-frontend/src` → Framework Preset: **Other**.
+2. Edit `bitnote-frontend/src/scripts/app-init.js`'s default `window.API_BASE` to your Render URL from step 2.
+3. Fill in the real `firebaseConfig` values in `auth.html` (see [Firebase setup](#4️⃣-set-up-firebase-google-sign-in) above) — the Web API key is safe to commit; it isn't a secret the way `firebase_key.json` is.
+4. Deploy. Then go back to Render and set `BITNOTE_CORS_ORIGINS` to this Vercel URL.
+5. Firebase Console → **Authentication** → **Settings** → **Authorized domains** → add your Vercel URL. Without this, Google Sign-In fails with `auth/unauthorized-domain` even though everything else is configured correctly.
+
+### Known limitation: file attachments
+
+Cell attachments are stored on the backend's local disk (`BITNOTE_UPLOAD_ROOT`). On a platform with an ephemeral filesystem and no persistent disk (like Render's free tier), uploaded files work within a session but don't survive a redeploy or an idle spin-down. Everything else — accounts, notebooks, AI-generated content, recall history — persists correctly via Postgres. Fixing attachments permanently means adding real object storage (e.g. Cloudflare R2's free tier); not yet implemented.
+
+---
+
 ## ⚠️ Important Notes
 
 1. **Firebase Key:** The `firebase_key.json` file is **secret**. Never push it to GitHub. It's already in `.gitignore`.
@@ -660,16 +715,19 @@ BitNote uses **SQLite** with the following tables:
 
 6. **Login rate limiting:** `/auth/login`, `/auth/signup`, and `/auth/google` are rate-limited (10 requests/minute per IP) to slow down brute-force attempts. The limiter is in-memory, so it resets on restart and doesn't share state across multiple worker processes.
 
+7. **Database:** SQLite by default. Set `DB_PROVIDER=postgres` for real persistence on platforms with an ephemeral filesystem — see [Deployment](#-deployment).
+
 ---
 
 ## 🛣️ Roadmap
 
 - [x] Add JWT-based session tokens
+- [x] Add Postgres as an opt-in database (SQLite remains the zero-config default)
+- [x] Deploy backend (Render)
+- [x] Deploy frontend (Vercel)
+- [x] Add a hosted LLM option (Gemini) alongside local Ollama
+- [ ] Persistent object storage for file attachments (currently ephemeral on serverless/free-tier deploys — see [Deployment](#-deployment))
 - [ ] Move remaining secrets (contact form email credentials) to environment variables
-- [ ] Migrate from SQLite to PostgreSQL
-- [ ] Deploy backend (Railway / Render)
-- [ ] Deploy frontend (Vercel / Netlify)
-- [ ] Add multiple AI model support
 - [ ] Real-time collaborative editing
 - [ ] Mobile-responsive design improvements
 
