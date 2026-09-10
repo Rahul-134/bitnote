@@ -1,50 +1,48 @@
 import os
 
+import requests
 from fastapi import APIRouter, HTTPException
 from bitnote.schemas.contact_schema import ContactRequest
-import aiosmtplib
-from email.message import EmailMessage
 
 router = APIRouter()
 
-EMAIL_USER = os.getenv("CONTACT_EMAIL_USER")
-EMAIL_PASS = os.getenv("CONTACT_EMAIL_PASS")  # Gmail App Password, no spaces
+# Raw SMTP (port 25/465/587) is blocked outbound on Render's free tier (and
+# many other free-tier platforms), so this sends via Resend's HTTPS API
+# instead — works identically in local dev and in production.
+RESEND_API_KEY = os.getenv("RESEND_API_KEY")
+CONTACT_TO_EMAIL = os.getenv("CONTACT_TO_EMAIL")
+# Resend's shared sandbox sender — works without owning/verifying a domain,
+# as long as CONTACT_TO_EMAIL is the same address the Resend account was
+# created with. Point this at a verified domain address once you have one.
+CONTACT_FROM_EMAIL = os.getenv("CONTACT_FROM_EMAIL", "onboarding@resend.dev")
 
 
 @router.post("/")
-async def send_contact_email(data: ContactRequest):
+def send_contact_email(data: ContactRequest):
 
-    if not EMAIL_USER or not EMAIL_PASS:
+    if not RESEND_API_KEY or not CONTACT_TO_EMAIL:
         raise HTTPException(
             status_code=500,
-            detail="Contact form is not configured. Set CONTACT_EMAIL_USER and "
-            "CONTACT_EMAIL_PASS (see .env.example).",
+            detail="Contact form is not configured. Set RESEND_API_KEY and "
+            "CONTACT_TO_EMAIL (see .env.example).",
         )
 
     try:
-        message = EmailMessage()
-        message["From"] = EMAIL_USER
-        message["To"] = EMAIL_USER
-        message["Subject"] = f"New Contact from {data.name}"
-
-        message.set_content(f"""
-Name: {data.name}
-Email: {data.email}
-
-Message:
-{data.message}
-        """)
-
-        await aiosmtplib.send(
-            message,
-            hostname="smtp.gmail.com",
-            port=587,
-            start_tls=True,
-            username=EMAIL_USER,
-            password=EMAIL_PASS,
+        response = requests.post(
+            "https://api.resend.com/emails",
+            headers={"Authorization": f"Bearer {RESEND_API_KEY}"},
+            json={
+                "from": CONTACT_FROM_EMAIL,
+                "to": [CONTACT_TO_EMAIL],
+                "reply_to": data.email,
+                "subject": f"New Contact from {data.name}",
+                "text": f"Name: {data.name}\nEmail: {data.email}\n\nMessage:\n{data.message}",
+            },
+            timeout=15,
         )
+        response.raise_for_status()
 
         return {"success": True, "message": "Email sent successfully"}
 
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    except requests.RequestException as e:
+        raise HTTPException(status_code=500, detail=f"Failed to send email: {e}")

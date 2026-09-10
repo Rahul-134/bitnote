@@ -136,9 +136,10 @@
               <p class="text-red-500 text-sm mt-1 hidden" id="messageError">Message is required</p>
             </div>
 
-            <button type="submit"
-              class="w-full bg-blue-600 text-white font-semibold py-3 rounded-lg hover:bg-blue-700 transition">
-              Send Message
+            <button type="submit" id="contactSubmitBtn"
+              class="w-full bg-blue-600 text-white font-semibold py-3 rounded-lg hover:bg-blue-700 transition disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2">
+              <span id="contactSubmitSpinner" class="material-symbols-outlined animate-spin hidden">progress_activity</span>
+              <span id="contactSubmitLabel">Send Message</span>
             </button>
 
             <!-- Toast -->
@@ -157,9 +158,14 @@
 
   <script>
     const form = document.getElementById("contactForm");
+    const submitBtn = document.getElementById("contactSubmitBtn");
+    const submitSpinner = document.getElementById("contactSubmitSpinner");
+    const submitLabel = document.getElementById("contactSubmitLabel");
 
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
+
+      if (submitBtn.disabled) return; // already sending, ignore repeat clicks
 
       const name = document.getElementById("name").value.trim();
       const email = document.getElementById("email").value.trim();
@@ -187,6 +193,10 @@
 
       if (!isValid) return;
 
+      submitBtn.disabled = true;
+      submitSpinner.classList.remove("hidden");
+      submitLabel.textContent = "Sending...";
+
       // Send to FastAPI
       try {
         const response = await fetch(`${window.API_BASE}/api/v1/contact/`, {
@@ -207,6 +217,10 @@
       } catch (error) {
         console.error("Frontend Error:", error);
         showToast("Server error ❌", true);
+      } finally {
+        submitBtn.disabled = false;
+        submitSpinner.classList.add("hidden");
+        submitLabel.textContent = "Send Message";
       }
     });
 
