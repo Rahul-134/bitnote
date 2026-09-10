@@ -468,20 +468,18 @@ export BITNOTE_DB_PATH=/path/to/your/bitnote.db
 
 ### 6️⃣ Configure Email (Contact Form) — Optional
 
-The contact form uses Gmail SMTP. To set it up:
+The contact form uses Gmail SMTP. Without this set up, the rest of the app works fine — only `POST /api/v1/contact/` returns a clear "not configured" error instead of trying to send.
 
 1. Create or use a Gmail account
 2. Enable **2-Factor Authentication** on the Gmail account
 3. Go to [Google App Passwords](https://myaccount.google.com/apppasswords)
 4. Generate a new app password for "Mail"
-5. Update the credentials in `bitnote-backend/bitnote/contact.py`:
+5. Set it in your `.env`:
 
-```python
-EMAIL_USER = "your-email@gmail.com"
-EMAIL_PASS = "your-app-password"    # 16-character app password
+```bash
+CONTACT_EMAIL_USER=your-email@gmail.com
+CONTACT_EMAIL_PASS=your-app-password    # 16-character app password, no spaces
 ```
-
-> ⚠️ **Security:** For production, move these to environment variables instead of hardcoding them.
 
 ---
 
@@ -683,7 +681,10 @@ BitNote has been deployed and verified end-to-end on a fully free stack — no c
    GEMINI_API_KEY=<your key>
    GEMINI_MODEL=gemini-3.5-flash-lite
    BITNOTE_CORS_ORIGINS=<your Vercel URL, added in step 3>
+   CONTACT_EMAIL_USER=<your Gmail address>
+   CONTACT_EMAIL_PASS=<a Gmail App Password>
    ```
+   The last two are optional — omit them and the contact form returns a clear error instead of the rest of the app breaking.
    Don't set `BITNOTE_DB_PATH` or `BITNOTE_UPLOAD_ROOT` unless you've attached a persistent disk — Render's free plan doesn't support one, and pointing either at a path that doesn't exist will crash the app on boot with a `Permission denied` error.
 6. Deploy. Your API is live at `https://<your-service>.onrender.com`.
 

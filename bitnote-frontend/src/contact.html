@@ -2,6 +2,7 @@
 <html class="light" lang="en">
 
 <head>
+  <script src="scripts/app-init.js"></script>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Contact - BitNote</title>
@@ -188,7 +189,7 @@
 
       // Send to FastAPI
       try {
-        const response = await fetch("http://127.0.0.1:8000/api/v1/contact/", {
+        const response = await fetch(`${window.API_BASE}/api/v1/contact/`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ name, email, message })

@@ -1,3 +1,5 @@
+import os
+
 from fastapi import APIRouter, HTTPException
 from bitnote.schemas.contact_schema import ContactRequest
 import aiosmtplib
@@ -5,13 +7,19 @@ from email.message import EmailMessage
 
 router = APIRouter()
 
-# HARD CODED (Only for testing)
-EMAIL_USER = "<example-email@gmail.com>"
-EMAIL_PASS = "<example-password>"   # remove spaces (16 characters)
+EMAIL_USER = os.getenv("CONTACT_EMAIL_USER")
+EMAIL_PASS = os.getenv("CONTACT_EMAIL_PASS")  # Gmail App Password, no spaces
 
 
 @router.post("/")
 async def send_contact_email(data: ContactRequest):
+
+    if not EMAIL_USER or not EMAIL_PASS:
+        raise HTTPException(
+            status_code=500,
+            detail="Contact form is not configured. Set CONTACT_EMAIL_USER and "
+            "CONTACT_EMAIL_PASS (see .env.example).",
+        )
 
     try:
         message = EmailMessage()
